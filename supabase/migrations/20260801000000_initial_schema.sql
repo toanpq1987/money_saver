@@ -1,7 +1,11 @@
 -- ============================================================================
---  MoneySaver - Schema quan ly chi tieu gia dinh
---  Chay toan bo file nay 1 lan trong: Supabase Dashboard > SQL Editor > New query
---  An toan khi chay lai nhieu lan (idempotent).
+--  0001 - Schema khoi tao cua MoneySaver
+--
+--  DA CHAY TREN DATABASE THAT - DUNG SUA FILE NAY NUA.
+--  Moi thay doi ve sau phai la mot file migration moi trong cung thu muc.
+--  Xem supabase/README.md.
+--
+--  An toan khi chay lai (create table if not exists / create or replace).
 -- ============================================================================
 
 create extension if not exists "pgcrypto";
@@ -293,6 +297,26 @@ begin
     $f$, t);
   end loop;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- 5b. QUYEN TRUY CAP
+--
+-- RLS quyet dinh nguoi dung thay duoc DONG nao, con GRANT quyet dinh ho co
+-- duoc dung cai BANG do hay khong. Thieu GRANT thi moi truy van deu bao
+-- "permission denied for table ...", du policy da viet dung.
+--
+-- Supabase thuong tu cap quyen nay khi tuy chon "Automatically expose new
+-- tables" duoc bat. Viet thang ra day de schema chay dung du tuy chon do
+-- co bat hay khong.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant select on public.v_account_balances to authenticated;
+
+-- Cac bang tao them sau nay cung duoc cap quyen tuong tu.
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 6. RPC: tao gia dinh moi (kem danh muc + vi mac dinh)

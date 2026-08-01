@@ -13,11 +13,11 @@ export default function SetupNotice() {
             Tạo dự án miễn phí tại <b>supabase.com</b>
           </>,
           <>
-            Mở <b>SQL Editor</b> → dán toàn bộ nội dung file{' '}
+            Mở <b>SQL Editor</b> → chạy lần lượt các file trong{' '}
             <code className="rounded bg-ink-200/70 px-1.5 py-0.5 text-[13px] dark:bg-white/10">
-              supabase/schema.sql
+              supabase/migrations/
             </code>{' '}
-            → bấm Run
+            theo thứ tự tên
           </>,
           <>
             Vào <b>Project Settings → Data API</b> để lấy <b>Project URL</b>, và{' '}

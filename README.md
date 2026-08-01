@@ -53,10 +53,15 @@ qua để không làm kẹt cả hàng đợi. Phần này có
 ### Bước 2 — Tạo bảng dữ liệu
 
 1. Trong dự án, mở **SQL Editor** (biểu tượng terminal ở cột trái) → **New query**.
-2. Mở file [`supabase/schema.sql`](supabase/schema.sql) trong thư mục này, **copy toàn bộ** rồi dán vào.
-3. Bấm **Run**. Thấy `Success. No rows returned` là xong.
+2. Mở thư mục [`supabase/migrations/`](supabase/migrations/), chạy từng file
+   **theo đúng thứ tự tên** — copy toàn bộ nội dung, dán vào, bấm **Run**.
+3. Thấy `Success. No rows returned` là xong.
 
-> File này chạy lại nhiều lần cũng không sao, không làm mất dữ liệu cũ.
+> Các file chạy lại nhiều lần cũng không sao, không làm mất dữ liệu cũ.
+>
+> Về sau muốn đổi gì trong database thì **thêm file migration mới**, đừng sửa
+> file cũ — lý do và cách làm nằm trong [`supabase/README.md`](supabase/README.md).
+> Ở đó cũng có hướng dẫn dùng Supabase CLI để khỏi phải dán tay.
 
 ### Bước 3 — Tắt xác nhận email (tuỳ chọn, nên làm)
 

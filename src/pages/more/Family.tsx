@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { SubHeader } from '@/components/AppShell'
 import { Field, Sheet, Spinner, useToast } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { useRenameHousehold, useUpdateProfile } from '@/lib/queries'
 import type { MemberRole } from '@/lib/types'
 
@@ -161,7 +162,7 @@ function SelfSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
       toast('Đã cập nhật hồ sơ')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 

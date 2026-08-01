@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Spinner, useToast } from '@/components/ui'
+import { errorMessage } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
 
 type Mode = 'signin' | 'signup'
@@ -126,7 +127,7 @@ export default function Login() {
 }
 
 function translateAuthError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err)
+  const msg = errorMessage(err, 'Đăng nhập thất bại')
   if (/invalid login credentials/i.test(msg)) return 'Email hoặc mật khẩu không đúng'
   if (/user already registered/i.test(msg)) return 'Email này đã được đăng ký'
   if (/password should be at least/i.test(msg)) return 'Mật khẩu phải có ít nhất 6 ký tự'

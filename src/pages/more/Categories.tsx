@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { SubHeader } from '@/components/AppShell'
 import { Field, Segmented, Sheet, Spinner, useConfirm, useToast } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { useDeleteCategory, useSaveCategory } from '@/lib/queries'
 import type { Category, CategoryKind } from '@/lib/types'
 
@@ -154,7 +155,7 @@ function CategorySheet({
       toast(category ? 'Đã cập nhật danh mục' : 'Đã thêm danh mục')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 

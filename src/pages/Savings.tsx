@@ -14,6 +14,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { useApp, useMe } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { dateKey, dayjs, formatCompact, formatMoney, pct } from '@/lib/format'
 import { INTEREST_LABELS, depositMath, monthlyNeeded } from '@/lib/finance'
 import {
@@ -244,7 +245,7 @@ function GoalSheet({
       toast(goal ? 'Đã cập nhật mục tiêu' : 'Đã tạo mục tiêu 🎯')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 
@@ -379,7 +380,7 @@ function EntrySheet({
       toast(data.direction === 'in' ? 'Đã ghi nhận tiền gửi' : 'Đã ghi nhận rút tiền')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 
@@ -630,7 +631,7 @@ function DepositSheet({
       toast(deposit ? 'Đã cập nhật sổ tiết kiệm' : 'Đã thêm sổ tiết kiệm 🏦')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 

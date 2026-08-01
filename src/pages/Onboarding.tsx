@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import { Segmented, Spinner, useToast } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
 import type { MemberRole } from '@/lib/types'
 
@@ -45,7 +46,7 @@ export default function Onboarding() {
       await qc.invalidateQueries()
       toast(mode === 'create' ? 'Đã tạo sổ gia đình 🎉' : 'Đã tham gia gia đình 🎉')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = errorMessage(err, 'Không tạo được sổ gia đình')
       toast(
         /Ma moi khong dung/i.test(msg)
           ? 'Mã mời không đúng'

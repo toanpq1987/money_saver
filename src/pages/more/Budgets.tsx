@@ -4,6 +4,7 @@ import { SubHeader } from '@/components/AppShell'
 import { Field, MoneyInput, ProgressBar, Sheet, Spinner, useToast } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
 import { useMonthData } from '@/hooks/useMonthData'
+import { errorMessage } from '@/lib/errors'
 import { dayjs, formatCompact, formatMoney, formatMonthLabel, monthKey, pct } from '@/lib/format'
 import { useBudgets, useSaveBudget } from '@/lib/queries'
 import { useUI } from '@/lib/store'
@@ -54,7 +55,7 @@ export default function Budgets() {
       toast(draft > 0 ? 'Đã đặt ngân sách' : 'Đã bỏ ngân sách')
       setEditing(null)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 

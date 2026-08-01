@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { SubHeader } from '@/components/AppShell'
 import { Segmented, Spinner, useConfirm, useToast } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { dayjs } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 import { useUI } from '@/lib/store'
@@ -70,7 +71,7 @@ export default function Settings() {
       URL.revokeObjectURL(url)
       toast(`Đã xuất ${rows.length} giao dịch`)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Xuất dữ liệu thất bại', 'error')
+      toast(errorMessage(e, 'Xuất dữ liệu thất bại'), 'error')
     } finally {
       setExporting(false)
     }

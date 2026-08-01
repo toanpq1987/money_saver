@@ -14,6 +14,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { dateKey, dayjs, formatMoney, pct } from '@/lib/format'
 import { useDebts, useDeleteDebt, useSaveDebt } from '@/lib/queries'
 import type { Debt } from '@/lib/types'
@@ -241,7 +242,7 @@ function DebtSheet({
       toast(debt ? 'Đã cập nhật' : 'Đã thêm khoản nợ')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 

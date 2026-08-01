@@ -12,6 +12,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { useApp, useMe } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { dateKey, dayjs, formatMoney } from '@/lib/format'
 import { useBills, useDeleteBill, useSaveBill, useSaveTransaction } from '@/lib/queries'
 import type { RecurringBill } from '@/lib/types'
@@ -67,7 +68,7 @@ export default function Bills() {
       await saveBill.mutateAsync({ id: b.id, last_paid_on: dateKey(new Date()) })
       toast('Đã ghi khoản chi cho hoá đơn này')
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 
@@ -241,7 +242,7 @@ function BillSheet({
       toast(bill ? 'Đã cập nhật hoá đơn' : 'Đã thêm hoá đơn')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 

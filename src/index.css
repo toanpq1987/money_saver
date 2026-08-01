@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Vung an toan cua iPhone (tai tho / thanh Home) */
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --nav-h: 4.25rem;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-950 antialiased dark:bg-ink-950 dark:text-ink-50;
+    overscroll-behavior-y: none;
+  }
+
+  /* iOS tu dong phong to trang khi focus input co font < 16px */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* An mui ten tang/giam cua input number */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white shadow-card dark:bg-ink-900/70 dark:ring-1 dark:ring-white/5;
+  }
+
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-3
+           text-[15px] font-semibold transition active:scale-[.97] disabled:opacity-40
+           disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-lg shadow-brand-600/25 hover:bg-brand-700;
+  }
+  .btn-ghost {
+    @apply btn bg-ink-100 text-ink-700 hover:bg-ink-200 dark:bg-white/5 dark:text-ink-200 dark:hover:bg-white/10;
+  }
+  .btn-danger {
+    @apply btn bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:text-red-400;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-ink-950
+           outline-none transition placeholder:text-ink-400
+           focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15
+           dark:border-white/10 dark:bg-white/5 dark:text-ink-50 dark:placeholder:text-ink-500;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[13px] font-semibold text-ink-500 dark:text-ink-400;
+  }
+
+  .chip {
+    @apply inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2
+           text-sm font-semibold transition active:scale-95;
+  }
+
+  /* Thanh cuon ngang khong hien scrollbar (danh muc, chon thang...) */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-top {
+    padding-top: calc(var(--sat) + 0.5rem);
+  }
+  .safe-bottom {
+    padding-bottom: var(--sab);
+  }
+}
+
+/* Ket qua: noi dung khong bi thanh nav duoi che mat */
+.page-pad {
+  padding-bottom: calc(var(--nav-h) + var(--sab) + 1.5rem);
+}

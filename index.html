@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="Quan ly chi tieu, tiet kiem va ngan sach cho gia dinh" />
+
+    <!-- iOS: cho phep Them vao man hinh chinh chay fullscreen nhu app native -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MoneySaver" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>MoneySaver - Chi tiêu gia đình</title>
+    <style>
+      /* Nen mac dinh truoc khi React mount, tranh nhap nhay trang */
+      html { background: #0f172a; }
+      html.light { background: #f6f7f9; }
+      #splash {
+        position: fixed; inset: 0; display: grid; place-items: center;
+        font: 600 15px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #8595ae; background: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div id="splash">Đang tải…</div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

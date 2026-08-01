@@ -7,6 +7,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -16,6 +17,14 @@ import { groupDigits, parseMoneyInput } from '@/lib/format'
 // ---------------------------------------------------------------------------
 // Bottom sheet - kieu modal quen thuoc tren iOS
 // ---------------------------------------------------------------------------
+
+/**
+ * Cac sheet dang mo, xep theo thu tu mo. Sheet co the long nhau (vi du dang
+ * them giao dich thi mo tiep o tao vi moi) - khi do chi sheet TREN CUNG duoc
+ * phan hoi phim Esc, neu khong mot lan bam Esc se dong het va mat du lieu
+ * dang nhap do.
+ */
+const openSheets: symbol[] = []
 
 export function Sheet({
   open,
@@ -30,17 +39,34 @@ export function Sheet({
   children: ReactNode
   footer?: ReactNode
 }) {
+  const idRef = useRef<symbol | null>(null)
+  if (idRef.current === null) idRef.current = Symbol('sheet')
+
+  // Giu onClose trong ref de effect chi chay lai khi dong/mo, khong chay lai
+  // moi lan cha ve lai (onClose thuong la ham inline, doi tham chieu lien tuc).
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     if (!open) return
+    const id = idRef.current!
+    openSheets.push(id)
+
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && openSheets[openSheets.length - 1] === id) onCloseRef.current()
+    }
     window.addEventListener('keydown', onKey)
+
     return () => {
+      const at = openSheets.lastIndexOf(id)
+      if (at >= 0) openSheets.splice(at, 1)
       document.body.style.overflow = prev
       window.removeEventListener('keydown', onKey)
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

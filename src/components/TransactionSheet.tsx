@@ -2,9 +2,14 @@ import clsx from 'clsx'
 import { ArrowRightLeft, Trash2, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useApp, useMe } from '@/hooks/useApp'
+import { errorMessage } from '@/lib/errors'
 import { dateKey, dayjs } from '@/lib/format'
 import { useDeleteTransaction, useSaveTransaction } from '@/lib/queries'
 import type { Transaction, TxType } from '@/lib/types'
+import { AccountSheet } from './AccountSheet'
+
+/** Gia tri gia trong <select> de mo o tao vi moi. */
+const NEW_ACCOUNT = '__new_account__'
 import { Field, MoneyInput, QuickAmounts, Segmented, Sheet, Spinner, useConfirm, useToast } from './ui'
 
 interface Props {
@@ -32,6 +37,8 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
   const [isShared, setIsShared] = useState(true)
   const [note, setNote] = useState('')
   const [date, setDate] = useState(dateKey(new Date()))
+  /** Dang mo o tao vi moi cho o nao: 'from' = Ví/Từ ví, 'to' = Đến ví. */
+  const [addingAccount, setAddingAccount] = useState<'from' | 'to' | null>(null)
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.archived), [accounts])
 
@@ -111,7 +118,7 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
       )
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Lưu thất bại', 'error')
+      toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
   }
 
@@ -129,7 +136,7 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
       toast('Đã xoá giao dịch')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Xoá thất bại', 'error')
+      toast(errorMessage(e, 'Xoá thất bại'), 'error')
     }
   }
 
@@ -201,7 +208,10 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
         <select
           className="field"
           value={accountId ?? ''}
-          onChange={(e) => setAccountId(e.target.value || null)}
+          onChange={(e) => {
+            if (e.target.value === NEW_ACCOUNT) setAddingAccount('from')
+            else setAccountId(e.target.value || null)
+          }}
         >
           <option value="">— Chọn ví —</option>
           {activeAccounts.map((a) => (
@@ -210,6 +220,7 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
               {a.owner_id ? ` (riêng)` : ''}
             </option>
           ))}
+          <option value={NEW_ACCOUNT}>➕ Thêm ví mới…</option>
         </select>
       </Field>
 
@@ -220,7 +231,10 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
             <select
               className="field"
               value={toAccountId ?? ''}
-              onChange={(e) => setToAccountId(e.target.value || null)}
+              onChange={(e) => {
+                if (e.target.value === NEW_ACCOUNT) setAddingAccount('to')
+                else setToAccountId(e.target.value || null)
+              }}
             >
               <option value="">— Chọn ví —</option>
               {activeAccounts
@@ -230,6 +244,7 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
                     {a.icon} {a.name}
                   </option>
                 ))}
+              <option value={NEW_ACCOUNT}>➕ Thêm ví mới…</option>
             </select>
           </div>
         </Field>
@@ -313,6 +328,17 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
           onChange={(e) => setNote(e.target.value)}
         />
       </Field>
+
+      {/* Tao vi moi ngay tai day, khong phai thoat ra trang Ví & tài khoản */}
+      <AccountSheet
+        open={addingAccount !== null}
+        account={null}
+        onClose={() => setAddingAccount(null)}
+        onCreated={(id) => {
+          if (addingAccount === 'to') setToAccountId(id)
+          else setAccountId(id)
+        }}
+      />
     </Sheet>
   )
 }

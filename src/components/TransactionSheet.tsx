@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowRightLeft, Trash2, Users } from 'lucide-react'
+import { ArrowRightLeft, Plus, Trash2, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useApp, useMe } from '@/hooks/useApp'
 import { errorMessage } from '@/lib/errors'
@@ -7,6 +7,7 @@ import { dateKey, dayjs } from '@/lib/format'
 import { useDeleteTransaction, useSaveTransaction } from '@/lib/queries'
 import type { Transaction, TxType } from '@/lib/types'
 import { AccountSheet } from './AccountSheet'
+import { CategorySheet } from './CategorySheet'
 
 /** Gia tri gia trong <select> de mo o tao vi moi. */
 const NEW_ACCOUNT = '__new_account__'
@@ -39,6 +40,7 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
   const [date, setDate] = useState(dateKey(new Date()))
   /** Dang mo o tao vi moi cho o nao: 'from' = Ví/Từ ví, 'to' = Đến ví. */
   const [addingAccount, setAddingAccount] = useState<'from' | 'to' | null>(null)
+  const [addingCategory, setAddingCategory] = useState(false)
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.archived), [accounts])
 
@@ -200,6 +202,18 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
                 </button>
               )
             })}
+
+            {/* Tao danh muc moi ngay tai day, khong phai thoat ra trang Danh mục */}
+            <button
+              type="button"
+              onClick={() => setAddingCategory(true)}
+              className="flex flex-col items-center gap-1 rounded-2xl border-2 border-dashed
+                         border-ink-300 px-1 py-3 text-ink-500 transition active:scale-95
+                         dark:border-white/15 dark:text-ink-400"
+            >
+              <Plus size={20} strokeWidth={2.5} />
+              <span className="text-center text-[11px] font-semibold leading-tight">Thêm</span>
+            </button>
           </div>
         </Field>
       )}
@@ -338,6 +352,14 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
           if (addingAccount === 'to') setToAccountId(id)
           else setAccountId(id)
         }}
+      />
+
+      <CategorySheet
+        open={addingCategory}
+        category={null}
+        kind={type === 'income' ? 'income' : 'expense'}
+        onClose={() => setAddingCategory(false)}
+        onCreated={setCategoryId}
       />
     </Sheet>
   )

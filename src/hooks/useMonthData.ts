@@ -5,6 +5,54 @@ import { useTransactions } from '@/lib/queries'
 import { useUI } from '@/lib/store'
 import type { Transaction } from '@/lib/types'
 
+/** Khoang thoi gian dang xem o man hinh Thong ke. */
+export type RangeKey = 'month' | '3m' | '6m' | 'year' | 'all'
+
+export const RANGE_LABELS: Record<RangeKey, string> = {
+  month: 'Tháng này',
+  '3m': '3 tháng',
+  '6m': '6 tháng',
+  year: 'Năm nay',
+  all: 'Toàn thời gian',
+}
+
+/**
+ * Doi khoang thoi gian thanh cap ngay dau/cuoi.
+ * `month` la thang dang chon lam moc (dang 'YYYY-MM-01').
+ */
+export function rangeBounds(range: RangeKey, month: string): { from: string; to: string } {
+  const end = dayjs(month).endOf('month')
+  switch (range) {
+    case 'month':
+      return { from: dateKey(dayjs(month).startOf('month')), to: dateKey(end) }
+    case '3m':
+      return { from: dateKey(end.subtract(2, 'month').startOf('month')), to: dateKey(end) }
+    case '6m':
+      return { from: dateKey(end.subtract(5, 'month').startOf('month')), to: dateKey(end) }
+    case 'year':
+      return { from: dateKey(end.startOf('year')), to: dateKey(end) }
+    case 'all':
+      // Bao tron moi giao dich, ke ca cac khoan ghi ngay trong tuong lai
+      return { from: '1970-01-01', to: '2999-12-31' }
+  }
+}
+
+/** So thang can ve tren bieu do xu huong ung voi tung khoang. */
+export function rangeTrendMonths(range: RangeKey): number {
+  switch (range) {
+    case 'month':
+      return 6
+    case '3m':
+      return 3
+    case '6m':
+      return 6
+    case 'year':
+      return 12
+    case 'all':
+      return 24
+  }
+}
+
 export interface CategorySlice {
   categoryId: string
   name: string
@@ -23,13 +71,13 @@ export interface CategorySlice {
  *   "ví" gom nhieu tai khoan). Bo trong = tinh het.
  *   Truyen tu ben ngoai (thay vi luu trong store dung chung) de bo loc o
  *   man hinh Thong ke khong am tham lam sai so lieu o Trang chu.
+ * @param range Khoang thoi gian. Mac dinh chi lay thang dang chon.
  */
-export function useMonthData(accountIds?: string[] | null) {
+export function useMonthData(accountIds?: string[] | null, range: RangeKey = 'month') {
   const { month, member } = useUI()
   const { categoryById } = useApp()
 
-  const from = dateKey(dayjs(month).startOf('month'))
-  const to = dateKey(dayjs(month).endOf('month'))
+  const { from, to } = rangeBounds(range, month)
   const query = useTransactions(from, to)
 
   const all = useMemo(() => query.data ?? [], [query.data])

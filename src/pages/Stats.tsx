@@ -16,16 +16,23 @@ import { MemberTabs, PageHeader } from '@/components/AppShell'
 import { EmptyState, ProgressBar, Spinner } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
 import { useChartTokens } from '@/hooks/useChartTokens'
-import { useMonthData, useTrend } from '@/hooks/useMonthData'
+import {
+  RANGE_LABELS,
+  rangeTrendMonths,
+  useMonthData,
+  useTrend,
+  type RangeKey,
+} from '@/hooks/useMonthData'
 import { dayjs, formatCompact, formatMoney, pct } from '@/lib/format'
 import { useUI } from '@/lib/store'
 import { groupAccountsByOwner } from '@/lib/wallets'
 
 export default function Stats() {
-  const { members, memberById, accounts, profile } = useApp()
+  const { members, memberById, accounts, profile, balanceOf } = useApp()
   const { month, member } = useUI()
-  /** Bo loc vi chi song trong man hinh nay, khong anh huong Trang chu. */
+  /** Bo loc vi va khoang thoi gian chi song trong man hinh nay. */
   const [wallet, setWallet] = useState<string | null>(null)
+  const [range, setRange] = useState<RangeKey>('month')
   const walletGroups = useMemo(
     () => groupAccountsByOwner(accounts, members, profile?.id),
     [accounts, members, profile?.id],
@@ -34,8 +41,11 @@ export default function Stats() {
     () => walletGroups.find((g) => g.key === wallet)?.accountIds ?? null,
     [walletGroups, wallet],
   )
-  const { rows, all, stats, byCategory, sharedSplit, isLoading } = useMonthData(walletAccountIds)
-  const trend = useTrend(6)
+  const { rows, all, stats, byCategory, sharedSplit, isLoading } = useMonthData(
+    walletAccountIds,
+    range,
+  )
+  const trend = useTrend(rangeTrendMonths(range))
   const t = useChartTokens()
   const [showTable, setShowTable] = useState(false)
 
@@ -112,6 +122,12 @@ export default function Stats() {
     return list.filter((r) => r.amount > 0)
   }, [sharedSplit, members, member, memberById, t])
 
+  /** So du that su dang co, luon tinh toan thoi gian. */
+  const totalBalance = useMemo(
+    () => walletGroups.reduce((sum, g) => sum + g.accountIds.reduce((s, id) => s + balanceOf(id), 0), 0),
+    [walletGroups, balanceOf],
+  )
+
   const maxDaily = Math.max(...daily.map((d) => d.expense), 1)
   const avgDaily = stats.expense / dayjs(month).daysInMonth()
   const topCategory = byCategory[0]
@@ -129,7 +145,30 @@ export default function Stats() {
 
   return (
     <div className="page-pad">
-      <PageHeader title="Thống kê" showMonth />
+      <PageHeader
+        title="Thống kê"
+        subtitle={range === 'month' ? undefined : RANGE_LABELS[range]}
+        showMonth={range !== 'all'}
+      />
+
+      {/* Khoang thoi gian */}
+      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-3">
+        {(Object.keys(RANGE_LABELS) as RangeKey[]).map((k) => (
+          <button
+            key={k}
+            onClick={() => setRange(k)}
+            className={clsx(
+              'chip',
+              range === k
+                ? 'bg-brand-600 text-white shadow-md'
+                : 'bg-ink-200/60 text-ink-600 dark:bg-white/5 dark:text-ink-300',
+            )}
+          >
+            {RANGE_LABELS[k]}
+          </button>
+        ))}
+      </div>
+
       <MemberTabs />
 
       {walletGroups.length > 1 && (
@@ -170,7 +209,7 @@ export default function Stats() {
             { label: 'Thu', value: stats.income, tone: 'text-emerald-600 dark:text-emerald-400' },
             { label: 'Chi', value: stats.expense, tone: 'text-red-500' },
             {
-              label: 'Còn lại',
+              label: range === 'month' ? 'Còn lại' : 'Tích luỹ',
               value: stats.net,
               tone: stats.net >= 0 ? 'text-ink-950 dark:text-white' : 'text-red-500',
             },
@@ -186,11 +225,52 @@ export default function Stats() {
           ))}
         </section>
 
+        {/*
+          So du tich luy - LUON tinh tu truoc toi nay, khong phu thuoc khoang
+          thoi gian dang chon. Day la so tien thuc su dang con trong tay.
+        */}
+        {walletGroups.length > 0 && (
+        <section className="card p-4">
+          <h2 className="font-bold">Số dư hiện tại</h2>
+          <p className="mt-0.5 text-[13px] text-ink-500">
+            Tính từ trước tới nay, đã cộng dồn phần dư của các tháng trước
+          </p>
+
+          <ul className="mt-3 divide-y divide-ink-200/60 dark:divide-white/5">
+            {walletGroups.map((g) => {
+              const balance = g.accountIds.reduce((s, id) => s + balanceOf(id), 0)
+              return (
+                <li key={g.key} className="flex items-baseline justify-between gap-3 py-2">
+                  <span className="min-w-0 truncate text-[14px] font-semibold">
+                    {g.emoji} {g.name}
+                  </span>
+                  <span
+                    className={clsx(
+                      'shrink-0 font-bold tabular-nums',
+                      balance < 0 && 'text-red-500',
+                    )}
+                  >
+                    {formatMoney(balance)}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+
+          <div className="mt-2 flex items-baseline justify-between gap-3 border-t-2 border-ink-200 pt-2.5 dark:border-white/10">
+            <span className="text-[14px] font-bold">Tổng cộng</span>
+            <span className="text-lg font-extrabold tabular-nums">{formatMoney(totalBalance)}</span>
+          </div>
+        </section>
+        )}
+
         {stats.expense === 0 && stats.income === 0 ? (
           <div className="card">
             <EmptyState
               icon="📊"
-              title="Chưa có dữ liệu tháng này"
+              title={
+                range === 'month' ? 'Chưa có dữ liệu tháng này' : 'Chưa có dữ liệu trong khoảng này'
+              }
               hint="Ghi vài giao dịch rồi quay lại, biểu đồ sẽ hiện ngay."
             />
           </div>
@@ -279,7 +359,8 @@ export default function Stats() {
               )}
             </section>
 
-            {/* Chi tieu theo ngay */}
+            {/* Chi tieu theo ngay - chi co nghia khi dang xem dung mot thang */}
+            {range === 'month' && (
             <section className="card p-4">
               <h2 className="font-bold">Chi tiêu theo ngày</h2>
               <p className="mt-0.5 text-[13px] text-ink-500">
@@ -317,6 +398,7 @@ export default function Stats() {
                 </ResponsiveContainer>
               </div>
             </section>
+            )}
 
             {/* Bang xep hang danh muc - danh tinh den tu icon + ten, khong phai mau */}
             {byCategory.length > 0 && (

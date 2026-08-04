@@ -203,7 +203,7 @@ qua bước này là người dùng hết cách phân biệt.
 
 ## Test
 
-`npm test` — 39 test, chạy bằng Vitest (môi trường `node`, có
+`npm test` — 49 test, chạy bằng Vitest (môi trường `node`, có
 `src/test/setup.ts` giả lập `localStorage` và `navigator.onLine`).
 
 - `src/lib/outbox.test.ts` — hàng đợi offline: thứ tự, mạng chập chờn, lỗi máy
@@ -211,6 +211,8 @@ qua bước này là người dùng hết cách phân biệt.
   gắn vào lệnh, trúng 0 dòng thì báo xung đột, guard không xuống hàng đợi)
 - `src/lib/patch.test.ts` — so form với bản gốc: numeric dạng chuỗi của Postgres,
   null vs undefined, ô bị xoá trắng, `false` không phải là "trống"
+- `src/lib/activity.test.ts` — nhật ký đọc ra có phân biệt được hai khoản giống
+  hệt nhau không: mã ngắn, ngày giao dịch, uuid dịch sang tên người/ví
 - `src/hooks/useStatement.test.ts` — phép tính sao kê: số dư đầu kỳ, cộng dồn,
   `đầu kỳ + vào − ra = cuối kỳ`, chuyển khoản hai chiều, thẻ tín dụng âm
 

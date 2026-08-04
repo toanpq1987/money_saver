@@ -1,14 +1,23 @@
 import clsx from 'clsx'
-import { History, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useMemo } from 'react'
+import { ChevronRight, History, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SubHeader } from '@/components/AppShell'
-import { EmptyState, Spinner } from '@/components/ui'
+import { TransactionSheet } from '@/components/TransactionSheet'
+import { EmptyState, Spinner, useToast } from '@/components/ui'
 import { useActivityNames } from '@/hooks/useActivityNames'
 import { useApp } from '@/hooks/useApp'
-import { ACTION_LABELS, TABLE_LABELS, describeChanges, describeRecord } from '@/lib/activity'
+import {
+  ACTION_LABELS,
+  TABLE_LABELS,
+  describeChanges,
+  describeRecord,
+  shortId,
+} from '@/lib/activity'
+import { errorMessage } from '@/lib/errors'
 import { dayjs } from '@/lib/format'
-import { useActivityLog } from '@/lib/queries'
-import type { ActivityLog } from '@/lib/types'
+import { fetchTransaction, useActivityLog } from '@/lib/queries'
+import type { ActivityLog, Transaction } from '@/lib/types'
 
 /**
  * Nhat ky hoat dong.
@@ -28,9 +37,44 @@ const ACTION_STYLES: Record<ActivityLog['action'], { icon: typeof Plus; classNam
 export default function Activity() {
   const { household, members } = useApp()
   const names = useActivityNames()
+  const toast = useToast()
+  const navigate = useNavigate()
   const { data, isLoading, error } = useActivityLog(Boolean(household))
 
+  const [editing, setEditing] = useState<Transaction | null>(null)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+
   const groups = useMemo(() => groupByDay(data ?? []), [data])
+
+  /**
+   * Bam vao mot dong nhat ky thi mo dung ban ghi do ra.
+   *
+   * Day moi la cau tra loi that cho "dong nay noi ve giao dich nao": doc mo
+   * ta roi doan thi bao gio cung co the nham, con mo ra xem thi khong.
+   */
+  const openRecord = async (log: ActivityLog) => {
+    if (log.table_name === 'accounts') {
+      navigate('/more/accounts')
+      return
+    }
+    if (log.table_name !== 'transactions') return
+
+    if (log.action === 'delete') {
+      toast('Giao dịch này đã bị xoá khỏi sổ')
+      return
+    }
+
+    setOpeningId(log.id)
+    try {
+      const tx = await fetchTransaction(log.record_id)
+      if (tx) setEditing(tx)
+      else toast('Giao dịch này không còn trong sổ nữa')
+    } catch (e) {
+      toast(errorMessage(e, 'Không mở được giao dịch'), 'error')
+    } finally {
+      setOpeningId(null)
+    }
+  }
 
   return (
     <div className="page-pad">
@@ -75,9 +119,16 @@ export default function Activity() {
                 const { icon: Icon, className } = ACTION_STYLES[log.action]
                 const actor = members.find((m) => m.id === log.actor_id)
                 const changes = describeChanges(log.changed, names)
+                // Ban ghi da bi xoa thi khong con gi de mo ra xem nua
+                const canOpen = log.action !== 'delete'
 
                 return (
-                  <article key={log.id} className="flex gap-3 px-4 py-3">
+                  <button
+                    key={log.id}
+                    type="button"
+                    onClick={() => void openRecord(log)}
+                    className="flex w-full gap-3 px-4 py-3 text-left transition active:bg-ink-100 dark:active:bg-white/5"
+                  >
                     <span
                       className={clsx(
                         'mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl',
@@ -99,6 +150,14 @@ export default function Activity() {
 
                       <p className="truncate text-[13px] text-ink-500">
                         {describeRecord(log, names) || '—'}
+                        {/*
+                          Ma ngan de phan biet hai khoan nhin giong het nhau.
+                          Ma nay cung hien o cuoi form sua giao dich, doi chieu
+                          la biet ngay dong nhat ky noi ve khoan nao.
+                        */}
+                        <span className="ml-1.5 font-mono text-[11px] text-ink-400">
+                          #{shortId(log.record_id)}
+                        </span>
                       </p>
 
                       {changes.length > 0 && (
@@ -115,10 +174,18 @@ export default function Activity() {
                       )}
                     </div>
 
-                    <time className="shrink-0 text-[12px] tabular-nums text-ink-400">
-                      {dayjs(log.created_at).format('HH:mm')}
-                    </time>
-                  </article>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <time className="text-[12px] tabular-nums text-ink-400">
+                        {dayjs(log.created_at).format('HH:mm')}
+                      </time>
+                      {canOpen &&
+                        (openingId === log.id ? (
+                          <Spinner className="h-4 w-4 text-ink-400" />
+                        ) : (
+                          <ChevronRight size={16} className="text-ink-400" />
+                        ))}
+                    </div>
+                  </button>
                 )
               })}
             </div>
@@ -127,10 +194,16 @@ export default function Activity() {
 
         {(data?.length ?? 0) > 0 && (
           <p className="mt-2 text-center text-[12px] text-ink-400">
-            Hiển thị {data?.length} thay đổi gần nhất
+            Hiển thị {data?.length} thay đổi gần nhất · bấm một dòng để mở khoản đó
           </p>
         )}
       </div>
+
+      <TransactionSheet
+        open={Boolean(editing)}
+        transaction={editing}
+        onClose={() => setEditing(null)}
+      />
     </div>
   )
 }

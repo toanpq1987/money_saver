@@ -224,6 +224,24 @@ export function useTransactions(from: string, to: string, enabled = true) {
   })
 }
 
+/**
+ * Doc mot giao dich theo id, khong qua cache.
+ *
+ * Dung khi bam vao mot dong nhat ky: dong do co the tro toi giao dich cua
+ * thang bat ky, ma cache chi giu nhung khoang ngay dang duoc xem.
+ */
+export async function fetchTransaction(id: string): Promise<Transaction | null> {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const row = data as Transaction
+  return { ...row, amount: num(row.amount) }
+}
+
 export type NewTransaction = Omit<
   Transaction,
   'id' | 'household_id' | 'created_at' | 'updated_at' | 'created_by'

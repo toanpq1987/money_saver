@@ -78,7 +78,9 @@ dư. Giao dịch chưa gửi có nhãn *"chờ gửi"*; có mạng lại tự g�
 app hay khởi động lại máy cũng không mất.
 
 **Nhật ký** — *Thêm → Nhật ký*. Ai thêm, sửa, xoá gì, lúc mấy giờ, và với khoản
-sửa thì ghi rõ **từ giá trị nào sang giá trị nào**. Xem [Hai người cùng sửa một
+sửa thì ghi rõ **từ giá trị nào sang giá trị nào**. **Bấm một dòng là mở thẳng
+khoản đó ra**; mỗi khoản còn có mã ngắn (`#6F9619`) hiện cả ở đây lẫn cuối form
+sửa, để hai khoản giống hệt nhau vẫn phân biệt được. Xem [Hai người cùng sửa một
 khoản](#hai-người-cùng-sửa-một-khoản) bên dưới.
 
 ### Tiện nhỏ

@@ -1,4 +1,4 @@
-import { formatMoney } from './format'
+import { dayjs, formatMoney } from './format'
 import type { ActivityLog } from './types'
 
 /**
@@ -107,8 +107,20 @@ export function describeChanges(
 }
 
 /**
+ * Ma ngan de phan biet hai dong nhin giong het nhau.
+ *
+ * Uuid day du dai 36 ky tu, doc bang mat thi vo dung. Sau ky tu dau la du de
+ * khong trung trong pham vi mot so gia dinh, va ngan de doi chieu voi ma hien
+ * o cuoi form sua giao dich.
+ */
+export const shortId = (id: string): string => id.replace(/-/g, '').slice(0, 6).toUpperCase()
+
+/**
  * Mot dong tom tat de biet dong nhat ky nay noi ve khoan nao.
- * Uu tien ghi chu, khong co thi lay danh muc, cuoi cung moi den so tien.
+ *
+ * Co NGAY GIAO DICH o dau: hai khoan cung ghi chu cung so tien thi ngay la
+ * thu dau tien phan biet duoc chung. Ngay o day la ngay cua giao dich, khac
+ * voi gio ghi nhat ky hien ben phai.
  */
 export function describeRecord(log: ActivityLog, names: ActivityNames): string {
   const snap = log.snapshot
@@ -119,6 +131,8 @@ export function describeRecord(log: ActivityLog, names: ActivityNames): string {
   }
 
   const parts: string[] = []
+  if (snap.occurred_at) parts.push(dayjs(String(snap.occurred_at)).format('DD/MM'))
+
   const note = typeof snap.note === 'string' ? snap.note.trim() : ''
   if (note) parts.push(note)
   else if (snap.category_id) parts.push(names.category(String(snap.category_id)))

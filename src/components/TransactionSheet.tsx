@@ -3,7 +3,7 @@ import { ArrowRightLeft, Plus, Trash2, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useApp, useMe } from '@/hooks/useApp'
 import { useActivityNames } from '@/hooks/useActivityNames'
-import { describeChanges } from '@/lib/activity'
+import { describeChanges, shortId } from '@/lib/activity'
 import { errorMessage, isConflict, type ConflictError } from '@/lib/errors'
 import { dateKey, dayjs } from '@/lib/format'
 import { diffRecords } from '@/lib/patch'
@@ -446,6 +446,16 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
           onChange={(e) => setNote(e.target.value)}
         />
       </Field>
+
+      {/*
+        Ma ngan trung voi ma hien o trang Nhat ky. Hai khoan cung ghi chu cung
+        so tien thi day la thu duy nhat phan biet duoc chung.
+      */}
+      {transaction && (
+        <p className="-mt-1 mb-2 text-center text-[12px] text-ink-400">
+          Mã khoản này: <span className="font-mono">#{shortId(transaction.id)}</span>
+        </p>
+      )}
 
       {/* Tao vi moi ngay tai day, khong phai thoat ra trang Ví & tài khoản */}
       <AccountSheet

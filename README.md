@@ -1,7 +1,54 @@
 # 💰 MoneySaver — Sổ chi tiêu chung của hai vợ chồng
 
-Web app (PWA) cài được lên iPhone như app thật, hai máy dùng chung một sổ và
-đồng bộ **ngay lập tức** với nhau.
+PWA cài lên iPhone như app thật. Hai máy dùng chung một sổ, đồng bộ tức thì,
+**ghi được cả khi mất mạng**.
+
+- **App:** https://money-saver-seven.vercel.app
+- **Code:** https://github.com/toanpq1987/money_saver
+
+---
+
+## Mục lục
+
+- [Khái niệm cần nắm: Ví và Tài khoản](#khái-niệm-cần-nắm-ví-và-tài-khoản)
+- [Có gì trong app](#có-gì-trong-app)
+- [Dùng hằng ngày](#dùng-hằng-ngày)
+- [Cài đặt từ đầu](#cài-đặt-từ-đầu)
+- [Cài lên iPhone](#cài-lên-iphone)
+- [Thêm người thứ hai vào sổ](#thêm-người-thứ-hai-vào-sổ)
+- [Câu hỏi hay gặp](#câu-hỏi-hay-gặp)
+- [Ghi chú kỹ thuật](#ghi-chú-kỹ-thuật)
+
+---
+
+## Khái niệm cần nắm: Ví và Tài khoản
+
+Đây là thứ dễ nhầm nhất, nắm được cái này là hiểu cả app:
+
+```
+👨 Ví của tôi              ← VÍ = tầng gom, theo từng người
+   💵 Tiền mặt             ← TÀI KHOẢN = nơi tiền thật sự nằm
+   🏦 BIDV
+   📱 Momo
+
+👩 Ví của vợ
+   💵 Tiền mặt
+   🏦 Techcombank
+
+🏠 Ví chung của gia đình
+   💵 Tiền mặt
+   💳 VPBank
+```
+
+Mỗi tài khoản khi tạo sẽ chọn **"Nằm trong ví"** nào. Ví được gom tự động theo
+chủ sở hữu — không phải tạo ví thủ công.
+
+Nhãn **"Ví của tôi"** là tương đối theo người đang đăng nhập: chồng thấy ví của
+mình là "Ví của tôi", vợ thấy ví của vợ là "Ví của tôi".
+
+> **Giới hạn:** cách gom này cho đúng 3 ví (mỗi người một ví + một ví chung).
+> Muốn đặt thêm ví tự do kiểu "Ví du lịch" thì phải thêm bảng riêng và một
+> migration.
 
 ---
 
@@ -9,183 +56,243 @@ Web app (PWA) cài được lên iPhone như app thật, hai máy dùng chung m�
 
 | Màn hình | Nội dung |
 |---|---|
-| **Tổng quan** | Số dư tất cả ví, thu/chi tháng, tiến độ ngân sách, cân đối khoản chung giữa vợ & chồng, hoá đơn sắp đến hạn, giao dịch gần đây |
-| **Giao dịch** | Nhập nhanh chi/thu/chuyển ví, tìm kiếm, lọc theo loại · danh mục · chung/riêng, sửa & xoá |
-| **Thống kê** | Xu hướng 6 tháng, chi tiêu theo từng ngày, cơ cấu chi theo danh mục, so sánh ai chi nhiều hơn, xem dạng bảng |
-| **Tiết kiệm** | Quỹ mục tiêu (mua nhà, du lịch…) có tiến độ & gợi ý cần gửi bao nhiêu mỗi tháng · Sổ tiết kiệm ngân hàng có kỳ hạn, lãi suất, ngày đáo hạn, lãi dự kiến |
-| **Thêm** | Ngân sách từng danh mục, ví & tài khoản, danh mục tuỳ chỉnh, vay & cho vay, hoá đơn định kỳ, thành viên & mã mời, cài đặt |
+| **Tổng quan** | Số dư gia đình · **Ví của tôi** (số dư + vào/ra trong tháng) · tiến độ ngân sách · cân đối khoản chung · hoá đơn sắp đến hạn · giao dịch gần đây |
+| **Giao dịch** | Nhập chi/thu/chuyển khoản, tìm kiếm, lọc theo loại · danh mục · chung/riêng |
+| **Thống kê** | Chọn khoảng: tháng / 3 tháng / 6 tháng / năm / **toàn thời gian** · số dư hiện tại từng ví · xu hướng · chi theo ngày · cơ cấu danh mục · khoản chung vs riêng · ai chi nhiều hơn |
+| **Tiết kiệm** | Quỹ mục tiêu có tiến độ & gợi ý gửi bao nhiêu mỗi tháng · sổ tiết kiệm ngân hàng (kỳ hạn, lãi suất, ngày đáo hạn, lãi dự kiến 3 kiểu trả lãi) |
+| **Thêm** | Ngân sách · Ví & tài khoản · **Sao kê tài khoản** · Danh mục · Vay & cho vay · Hoá đơn định kỳ · Gia đình · Cài đặt |
 
-**Tab riêng của vợ và chồng**: thanh chip ở đầu màn hình — `Cả nhà` / `Chồng` /
-`Vợ` — lọc mọi số liệu theo người chi. Mỗi giao dịch còn đánh dấu được là
-**khoản chung** (tính vào ngân sách & chia đôi) hay **khoản riêng**.
+### Ba tính năng đáng chú ý
 
-Tính năng khác: gõ tắt số tiền (`50k`, `1,2tr`, `2ty`), ẩn số dư bằng một chạm,
-giao diện sáng/tối, xuất CSV mở bằng Excel.
+**Tab riêng của từng người** — chip `Cả nhà / Ví của tôi / Ví của vợ` lọc mọi số
+liệu. Mỗi giao dịch còn đánh dấu được là **khoản chung** (tính vào ngân sách và
+chia đôi khi cân đối) hay **khoản riêng**.
 
-### Ghi được cả khi mất mạng
+**Sao kê tài khoản** — *Thêm → Sao kê tài khoản*. Mỗi tài khoản một thẻ: số dư
+đầu kỳ, tiền vào, tiền ra, số dư cuối kỳ. Bấm vào để xem từng giao dịch kèm **số
+dư luỹ kế**, đối chiếu thẳng với sao kê ngân hàng gửi về.
 
-Đi chợ chỗ sóng yếu vẫn ghi chi tiêu bình thường:
+**Ghi được khi mất mạng** — bấm Lưu là xong ngay, số liệu cập nhật liền kể cả số
+dư. Giao dịch chưa gửi có nhãn *"chờ gửi"*; có mạng lại tự gửi đúng thứ tự. Tắt
+app hay khởi động lại máy cũng không mất.
 
-- Bấm Lưu là **xong ngay**, số liệu cập nhật liền (kể cả số dư ví) — không chờ mạng
-- Giao dịch chưa gửi được có nhãn **“chờ gửi”**, và một dải nhỏ phía dưới màn hình
-  cho biết đang ngoại tuyến / còn bao nhiêu thay đổi chờ
-- Có mạng lại là **tự gửi**, đúng thứ tự đã ghi, không cần làm gì
-- Tắt app hay khởi động lại máy cũng không mất — hàng đợi nằm trong bộ nhớ máy
-- Mở app khi không có mạng vẫn xem được số liệu của lần dùng gần nhất
+### Tiện nhỏ
 
-Cách làm: mỗi thao tác ghi được xếp vào một hàng đợi (*outbox*) trong
-`localStorage`, id bản ghi sinh sẵn ở máy nên tạo rồi sửa tiếp khi offline vẫn
-trỏ đúng một dòng. Lỗi mạng thì giữ lại thử sau, lỗi do máy chủ từ chối thì bỏ
-qua để không làm kẹt cả hàng đợi. Phần này có
-[bộ test riêng](src/lib/outbox.test.ts) — chạy bằng `npm test`.
+Gõ tắt số tiền (`50k`, `1,2tr`, `2ty`) · ẩn số dư một chạm · giao diện sáng/tối ·
+xuất CSV mở bằng Excel · tạo ví/danh mục ngay trong form giao dịch.
 
 ---
 
-## Cài đặt — làm một lần, khoảng 10 phút
+## Dùng hằng ngày
 
-### Bước 1 — Tạo dự án Supabase (miễn phí)
+### Mô hình tiền của nhà này
 
-1. Vào [supabase.com](https://supabase.com) → **Start your project** → đăng nhập bằng GitHub/Google.
-2. **New project**. Đặt tên tuỳ ý, chọn region **Southeast Asia (Singapore)** cho nhanh.
-3. Đặt **Database Password** và lưu lại (chỉ cần khi thao tác nâng cao).
-4. Đợi ~2 phút cho dự án khởi tạo xong.
-
-### Bước 2 — Tạo bảng dữ liệu
-
-1. Trong dự án, mở **SQL Editor** (biểu tượng terminal ở cột trái) → **New query**.
-2. Mở thư mục [`supabase/migrations/`](supabase/migrations/), chạy từng file
-   **theo đúng thứ tự tên** — copy toàn bộ nội dung, dán vào, bấm **Run**.
-3. Thấy `Success. No rows returned` là xong.
-
-> Các file chạy lại nhiều lần cũng không sao, không làm mất dữ liệu cũ.
->
-> Về sau muốn đổi gì trong database thì **thêm file migration mới**, đừng sửa
-> file cũ — lý do và cách làm nằm trong [`supabase/README.md`](supabase/README.md).
-> Ở đó cũng có hướng dẫn dùng Supabase CLI để khỏi phải dán tay.
-
-### Bước 3 — Tắt xác nhận email (tuỳ chọn, nên làm)
-
-**Authentication → Sign In / Providers → Email** → tắt **Confirm email** → Save.
-Không tắt cũng được, chỉ là mỗi người phải bấm link trong mail khi đăng ký.
-
-### Bước 4 — Lấy khoá kết nối
-
-- **Project Settings → Data API** → copy **Project URL**
-- **Project Settings → API Keys** → copy **anon public** key
-
-Tạo file `.env` ở thư mục gốc dự án (cạnh `package.json`):
-
-```env
-VITE_SUPABASE_URL=https://abcdxyz.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9....
+```
+Lương chồng 75tr ──→ Ví của chồng
+                       ├── 70tr ──→ Ví của vợ      (loại: Chuyển khoản)
+                       └──  5tr  ──→ chi tiêu riêng
+Lương vợ ─────────→ Ví của vợ ──→ chi cho vợ + gia đình
 ```
 
-> `anon key` là khoá công khai, để lộ cũng không sao — dữ liệu được bảo vệ bằng
-> Row Level Security ở tầng database: mỗi người chỉ đọc/ghi được đúng dữ liệu
-> gia đình mình.
+Mỗi tháng ghi 3 khoản:
 
-### Bước 5 — Chạy thử trên máy
+| Việc | Loại | Ghi vào |
+|---|---|---|
+| Nhận lương 75tr | **Thu** | tài khoản trong Ví của chồng |
+| Đưa vợ 70tr | **Chuyển** | từ tài khoản của chồng → tài khoản của vợ |
+| Tiêu vặt | **Chi** | tài khoản của chồng, **gạt tắt** "khoản chung" |
+
+Chuyển khoản không tính là thu hay chi, nên thống kê không bị đội số.
+
+### Hai con số dễ nhầm
+
+| | Ý nghĩa |
+|---|---|
+| **Số dư** (ở Ví & tài khoản, thẻ Ví của tôi) | Tiền thật đang có. Tích luỹ **toàn thời gian**, đã cộng dồn dư của các tháng trước |
+| **Chênh lệch / Tháng này tăng-giảm** | Thu − chi **trong khoảng đang xem**. Âm không có nghĩa là hết tiền |
+
+Ví dụ: ví còn **1.644.000 ₫** nhưng tháng này ghi *"Tháng này giảm 3.278.000 ₫"* →
+ví vẫn còn tiền, chỉ là tháng này tiêu nhiều hơn thu.
+
+### Nhớ gạt công tắc "khoản chung"
+
+Trong form thêm giao dịch, công tắc **"Khoản chung của gia đình"** mặc định
+**bật**. Khoản nào chi riêng (cà phê với bạn, đồ cá nhân…) thì gạt tắt — nếu
+không, thống kê chung/riêng sẽ thấy 100% là khoản chung.
+
+---
+
+## Cài đặt từ đầu
+
+*(Đã cài xong rồi thì bỏ qua phần này — chỉ cần khi dựng lại từ số 0.)*
+
+### 1. Tạo dự án Supabase (miễn phí)
+
+[supabase.com](https://supabase.com) → **New project**
+
+- Region: **Southeast Asia (Singapore)**
+- Lưu lại **Database Password**
+- Giữ nguyên tick **"Automatically expose new tables"**
+
+### 2. Chạy migration
+
+**SQL Editor → New query** → chạy lần lượt các file trong
+[`supabase/migrations/`](supabase/migrations/) **theo đúng thứ tự tên** → **Run**.
+
+Kiểm chứng: mở **Table Editor**, phải thấy **11 bảng**.
+
+> Muốn đổi database về sau thì **thêm file migration mới**, đừng sửa file cũ.
+> Lý do và cách dùng Supabase CLI nằm trong
+> [`supabase/README.md`](supabase/README.md).
+
+### 3. Tắt xác nhận email
+
+**Authentication → Sign In / Providers → Email** → tắt **Confirm email** → Save.
+
+### 4. Trỏ Site URL về domain thật
+
+**Authentication → URL Configuration**
+
+- **Site URL**: `https://money-saver-seven.vercel.app`
+- **Redirect URLs**: `https://money-saver-seven.vercel.app/**`
+
+Không làm bước này thì link trong email (xác nhận, quên mật khẩu) sẽ trỏ về
+`localhost:3000` và chết.
+
+### 5. Lấy khoá kết nối
+
+- **Project Settings → Data API** → **Project URL** *(chỉ lấy phần gốc, **không** kèm `/rest/v1/`)*
+- **Project Settings → API Keys** → khoá **anon / public** *(bản mới gọi là **Publishable key**)*
+
+🚫 Không bao giờ dùng `service_role` / `secret` — khoá đó bỏ qua toàn bộ bảo mật.
+
+### 6. Chạy thử ở máy
+
+Tạo `.env` cạnh `package.json` (mẫu ở [`.env.example`](.env.example)):
+
+```env
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=...
+```
 
 ```bash
 npm install
 npm run dev
 ```
 
-Mở địa chỉ hiện trong terminal. Đăng ký tài khoản → chọn **Tạo sổ mới** → xong.
+### 7. Deploy lên Vercel
+
+[vercel.com](https://vercel.com) → **Add New → Project** → chọn repo → preset
+**Vite** (tự nhận) → mở **Environment Variables** nhập 2 biến trên → **Deploy**.
+
+> ⚠️ Vite nhúng biến môi trường vào lúc **build**. Sửa biến sau khi đã deploy thì
+> **bắt buộc Redeploy**, không tự cập nhật.
 
 ---
 
-## Đưa lên mạng để cài vào iPhone
+## Cài lên iPhone
 
-iPhone chỉ cài được PWA khi trang chạy trên **HTTPS**, nên cần deploy. Vercel là
-nhanh nhất và miễn phí:
+1. Mở link bằng **Safari** — bắt buộc. Chrome trên iOS không cài được, và cũng
+   đừng mở từ link trong Zalo/Messenger.
+2. Bấm **Chia sẻ** ⬆️ ở thanh dưới
+3. Vuốt xuống → **Thêm vào MH chính**
+4. **Thêm**
 
-```bash
-npm install -g vercel
-vercel
-```
+**Lần đầu mở từ icon sẽ phải đăng nhập lại** — iOS cho app một kho lưu trữ riêng,
+tách khỏi Safari. Đăng nhập một lần rồi thôi.
 
-Làm theo hướng dẫn trên màn hình, rồi thêm 2 biến môi trường:
-
-```bash
-vercel env add VITE_SUPABASE_URL
-vercel env add VITE_SUPABASE_ANON_KEY
-vercel --prod
-```
-
-Hoặc dễ hơn: đẩy code lên GitHub → vào [vercel.com](https://vercel.com) →
-**Add New Project** → chọn repo → dán 2 biến môi trường vào mục
-**Environment Variables** → **Deploy**.
-
-Netlify, Cloudflare Pages cũng dùng được — file `vercel.json` và
-`public/_redirects` đã cấu hình sẵn cho cả hai.
-
-### Cài lên iPhone
-
-1. Mở link vừa deploy bằng **Safari** (bắt buộc — Chrome trên iOS không cài được).
-2. Bấm nút **Chia sẻ** ở thanh dưới.
-3. Chọn **Thêm vào MH chính** → **Thêm**.
-4. Icon xuất hiện ở màn hình chính, mở lên chạy toàn màn hình như app thường.
+**Cập nhật:** sau mỗi lần push code, đóng hẳn app (vuốt lên khỏi app switcher)
+rồi mở lại.
 
 ---
 
-## Hai vợ chồng dùng chung sổ
+## Thêm người thứ hai vào sổ
 
-1. **Người thứ nhất** đăng ký → **Tạo sổ mới** → điền tên gia đình, tên mình, chọn Chồng/Vợ.
-2. Vào **Thêm → Gia đình**, bấm **Chia sẻ** để gửi **mã mời 6 ký tự** cho người kia.
-3. **Người thứ hai** cài app trên máy mình, đăng ký tài khoản **riêng**, chọn
-   **Có mã mời**, nhập mã → vào chung sổ.
+Cần **cả hai**: tài khoản riêng **và** mã mời.
 
-Từ đó ai ghi gì máy kia cũng thấy ngay, không cần bấm làm mới.
+**Người đã có sổ:** *Thêm → Gia đình* → **Chia sẻ** mã 6 ký tự.
+
+**Người mới:**
+1. Cài app trên máy mình
+2. **Tạo tài khoản** bằng email **riêng**
+3. Ở màn hình "Chào bạn 👋" chọn tab **"Có mã mời"** ⚠️ **không phải "Tạo sổ mới"**
+4. Nhập mã → tên hiển thị → chọn vai trò → **Tham gia**
+
+> ⚠️ Nếu lỡ bấm "Tạo sổ mới", tài khoản đó sẽ dính vào một sổ riêng và **không
+> tham gia sổ chung được nữa**. Sửa bằng cách vào Supabase → **Table Editor →
+> `profiles`** → đổi `household_id` của người đó thành `household_id` của bạn,
+> rồi xoá household thừa.
+
+Đừng dùng chung một tài khoản đăng nhập — app sẽ không phân biệt được ai chi
+khoản nào, mọi tính năng theo người sẽ vô dụng.
+
+Sau khi có 2 người, những thứ này tự hiện ra: thanh chip lọc theo người, mục "Ai
+chi nhiều hơn", ô "Ai chi" trong form, thẻ "Cân đối khoản chung".
 
 ---
 
 ## Câu hỏi hay gặp
 
-**Dữ liệu có mất không?** Không. Toàn bộ nằm trên Supabase, gỡ app hay đổi điện
-thoại đăng nhập lại là còn nguyên. Nên thỉnh thoảng vào **Cài đặt → Xuất dữ liệu
-(CSV)** lưu một bản.
+**Dữ liệu có mất không?** Không, nằm trên Supabase. Gỡ app hay đổi máy, đăng nhập
+lại là còn nguyên. Thỉnh thoảng vào **Cài đặt → Xuất dữ liệu (CSV)** lưu một bản.
 
-**Miễn phí đến bao giờ?** Gói free của Supabase cho 500MB database — một gia đình
-ghi vài chục năm cũng chưa hết. Lưu ý: dự án free bị **tạm dừng nếu không dùng 7
-ngày liên tục**, chỉ cần mở app là chạy lại (mất vài giây lần đầu).
+**Miễn phí đến bao giờ?** Supabase free cho 500MB — ghi vài chục năm chưa hết.
+Lưu ý dự án free **ngủ đông sau 7 ngày không dùng**, mở app là chạy lại sau vài
+giây.
 
-**Muốn thêm người thứ ba (ông bà, con)?** Cứ gửi mã mời — app hỗ trợ nhiều thành
-viên, mỗi người có tab lọc riêng.
+**Số dư ví âm là sao?** Thẻ tín dụng đang nợ thì số dư âm — đúng bản chất.
 
-**Đổi tiền tệ khác VNĐ?** Sửa hàm `formatMoney` trong
+**Sao kê tháng lệch với số dư ở trang Ví & tài khoản?** Nếu có giao dịch ghi
+**ngày trong tương lai**: số dư tính cả nó, sao kê tháng thì không. Đúng theo
+nguyên tắc sao kê.
+
+**Đổi tiền tệ khác VNĐ?** Sửa `formatMoney` trong
 [`src/lib/format.ts`](src/lib/format.ts).
+
+**Thêm người thứ ba (ông bà, con)?** Cứ gửi mã mời, app hỗ trợ nhiều thành viên.
 
 ---
 
 ## Ghi chú kỹ thuật
 
-- **React 18 + TypeScript + Vite 6 + Tailwind 3**, PWA qua `vite-plugin-pwa`
-- **Supabase** cho auth, database (PostgreSQL) và realtime
-- **Bảo mật**: Row Level Security trên mọi bảng; hàm `my_household_id()` khai báo
-  `SECURITY DEFINER` để policy không bị đệ quy vô hạn
-- **Đồng bộ**: kênh realtime theo `household_id`; app tự tải lại dữ liệu khi
-  quay lại từ nền hoặc khi có mạng lại (iOS đóng băng WebSocket khi app ở nền)
-- **Màu biểu đồ** trong `src/lib/palette.ts` đã được kiểm tra bằng công cụ
-  validate: độ sáng, độ bão hoà, khả năng phân biệt với người mù màu
-  (protan/deutan/tritan) và độ tương phản với nền — ở cả chế độ sáng lẫn tối.
-  Bảng xếp hạng danh mục cố tình **không dùng màu để phân biệt danh mục** (12
-  danh mục thì không bộ màu nào an toàn), danh tính đến từ icon + tên ghi thẳng
-  trên từng dòng.
+**Stack:** React 18 · TypeScript · Vite 6 · Tailwind 3 · Supabase (Postgres +
+Auth + Realtime) · `vite-plugin-pwa` · Recharts · TanStack Query · Zustand
 
-### Lệnh thường dùng
+**Bảo mật:** Row Level Security trên mọi bảng. Hàm `my_household_id()` khai báo
+`SECURITY DEFINER` để policy của `profiles` không bị đệ quy vô hạn. Kèm `GRANT`
+tường minh vì RLS quyết định thấy *dòng* nào, còn `GRANT` quyết định có được đụng
+*bảng* hay không.
+
+**Đồng bộ:** kênh realtime theo `household_id`. App tự tải lại khi quay lại từ
+nền hoặc khi có mạng lại — iOS đóng băng WebSocket lúc app ở nền.
+
+**Offline:** mọi thao tác ghi đi qua một hàng đợi (*outbox*) trong `localStorage`.
+Id bản ghi sinh sẵn ở máy nên tạo rồi sửa tiếp khi offline vẫn trỏ đúng một dòng.
+Lỗi mạng thì giữ lại thử sau, lỗi máy chủ từ chối thì bỏ qua để không kẹt hàng đợi.
+
+**Màu biểu đồ** ([`src/lib/palette.ts`](src/lib/palette.ts)) đã qua công cụ
+validate: độ sáng, độ bão hoà, phân biệt với người mù màu (protan/deutan/tritan),
+tương phản với nền — ở **cả hai** chế độ sáng và tối. Bảng xếp hạng danh mục cố
+tình **không dùng màu để phân biệt** (12 danh mục thì không bộ màu nào an toàn);
+danh tính đến từ icon + tên ghi thẳng trên từng dòng.
+
+### Lệnh
 
 ```bash
-npm run dev        # chạy máy local (kèm --host để mở từ điện thoại cùng wifi)
-npm run build      # build bản production vào dist/
-npm run preview    # xem thử bản build
-npm test           # chạy test cho phần đồng bộ offline
-npm run icons      # sinh lại icon PWA từ public/favicon.svg
+npm run dev        # chạy local (--host để mở từ điện thoại cùng wifi)
+npm run build      # build production vào dist/
+npm run preview    # xem thử bản build (có service worker)
+npm test           # 23 test cho outbox offline + phép tính sao kê
 npm run typecheck  # kiểm tra kiểu
+npm run icons      # sinh lại icon PWA từ public/favicon.svg
 ```
 
 ### Thử chế độ offline
 
-Mở app bằng `npm run preview` (chế độ dev không bật service worker), rồi trong
-DevTools chọn tab **Network → Offline**. Ghi vài giao dịch, tắt Offline đi và
-xem chúng tự được gửi lên.
+`npm run preview` (chế độ `dev` không bật service worker) → DevTools →
+**Network → Offline** → ghi vài giao dịch → tắt Offline → xem chúng tự gửi lên.
+
+### Việc còn để dành
+
+Xem [`TODO.md`](TODO.md) — thông báo đẩy nhắc hoá đơn, khoá app bằng Face ID, và
+vài ý tưởng khác.

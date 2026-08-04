@@ -146,6 +146,13 @@ báo `set search_path = public` sẽ không thấy `gen_random_bytes`. Dùng
 định có được đụng *bảng* hay không. Thiếu `GRANT` → `permission denied for table`
 dù policy viết đúng.
 
+**`WITH CHECK` không nhìn được giá trị cũ.** Policy `profiles_update` viết
+`with check (id = auth.uid())` — đọc thì tưởng đã khoá cả dòng, thực ra chỉ khoá
+mỗi cột `id`. Người dùng gọi API thẳng vẫn tự đổi được `household_id` sang gia
+đình khác, và vì mọi bảng con đều phân quyền qua `my_household_id()` nên đổi
+xong là đọc được hết sổ nhà người ta. Postgres không có `OLD` trong `WITH CHECK`
+→ muốn khoá "cột này không được đổi" thì **phải dùng trigger** (migration 0004).
+
 **Supabase không ném ra `Error`**, nó trả về object `{ message, code, details }`.
 Viết `e instanceof Error ? e.message : String(e)` sẽ ra `"[object Object]"`. Luôn
 dùng `errorMessage()` trong `lib/errors.ts`.

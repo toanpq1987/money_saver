@@ -18,8 +18,12 @@ export interface CategorySlice {
 /**
  * Du lieu cua thang dang xem, da ap dung bo loc thanh vien.
  * Chuyen khoan giua 2 vi khong duoc tinh la thu hay chi.
+ *
+ * @param walletId Chi lay giao dich lien quan toi mot vi. Bo trong = moi vi.
+ *   Truyen tu ben ngoai (thay vi luu trong store dung chung) de bo loc o
+ *   man hinh Thong ke khong am tham lam sai so lieu o Trang chu.
  */
-export function useMonthData() {
+export function useMonthData(walletId?: string | null) {
   const { month, member } = useUI()
   const { categoryById } = useApp()
 
@@ -29,10 +33,14 @@ export function useMonthData() {
 
   const all = useMemo(() => query.data ?? [], [query.data])
 
-  const rows = useMemo(
-    () => (member === 'all' ? all : all.filter((t) => t.payer_id === member)),
-    [all, member],
-  )
+  const rows = useMemo(() => {
+    let list = all
+    if (member !== 'all') list = list.filter((t) => t.payer_id === member)
+    if (walletId) {
+      list = list.filter((t) => t.account_id === walletId || t.to_account_id === walletId)
+    }
+    return list
+  }, [all, member, walletId])
 
   const stats = useMemo(() => {
     let income = 0
@@ -115,6 +123,77 @@ export function useMonthData() {
     sharedSplit,
     sharedByPayer,
   }
+}
+
+export interface WalletFlow {
+  /** So du hien tai cua nhom vi. */
+  balance: number
+  /** Thu nhap vao nhom vi trong thang (luong, thuong...). */
+  income: number
+  /** Nhan chuyen khoan tu vi ben ngoai nhom. */
+  transferIn: number
+  /** Chuyen sang vi ben ngoai nhom (vi du dua vo). */
+  transferOut: number
+  expense: number
+  /** Vao bao nhieu, ra bao nhieu, con lai bao nhieu trong thang. */
+  net: number
+  hasWallets: boolean
+}
+
+/**
+ * Dong tien cua MOT NHOM VI trong thang dang xem.
+ *
+ * Dung de tra loi "tien rieng cua toi thang nay vao ra the nao". Khac voi bo
+ * loc theo nguoi: sau khi chuyen 70tr cho vo thi so tien do khong con la cua
+ * minh nua, du minh van la nguoi kiem ra no - nen phai tinh theo VI chu khong
+ * theo NGUOI CHI.
+ *
+ * Chuyen khoan qua lai giua cac vi trong cung nhom khong duoc tinh vao dau.
+ */
+export function useWalletFlow(accountIds: string[]): WalletFlow {
+  const { month } = useUI()
+  const { balanceOf } = useApp()
+
+  const from = dateKey(dayjs(month).startOf('month'))
+  const to = dateKey(dayjs(month).endOf('month'))
+  const query = useTransactions(from, to)
+
+  // Mang doi tham chieu moi lan ve lai, dung chuoi khoa cho on dinh.
+  const key = accountIds.join(',')
+
+  return useMemo(() => {
+    const ids = key ? key.split(',') : []
+    const mine = new Set(ids)
+    const flow: WalletFlow = {
+      balance: 0,
+      income: 0,
+      transferIn: 0,
+      transferOut: 0,
+      expense: 0,
+      net: 0,
+      hasWallets: ids.length > 0,
+    }
+    if (ids.length === 0) return flow
+
+    flow.balance = ids.reduce((sum, id) => sum + balanceOf(id), 0)
+
+    for (const t of query.data ?? []) {
+      const fromMine = t.account_id ? mine.has(t.account_id) : false
+      const toMine = t.to_account_id ? mine.has(t.to_account_id) : false
+
+      if (t.type === 'transfer') {
+        if (fromMine && toMine) continue // chuyen qua lai trong cung nhom vi
+        if (fromMine) flow.transferOut += t.amount
+        else if (toMine) flow.transferIn += t.amount
+      } else if (fromMine) {
+        if (t.type === 'income') flow.income += t.amount
+        else flow.expense += t.amount
+      }
+    }
+
+    flow.net = flow.income + flow.transferIn - flow.transferOut - flow.expense
+    return flow
+  }, [query.data, key, balanceOf])
 }
 
 /** Nhom giao dich theo ngay de hien danh sach co tieu de ngay. */

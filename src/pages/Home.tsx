@@ -8,6 +8,7 @@ import {
   EyeOff,
   Scale,
   Target,
+  Wallet,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -15,10 +16,28 @@ import { MemberTabs, PageHeader } from '@/components/AppShell'
 import { TransactionGroups } from '@/components/TransactionList'
 import { EmptyState, ProgressBar, Spinner } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
-import { useMonthData } from '@/hooks/useMonthData'
+import { useMonthData, useWalletFlow } from '@/hooks/useMonthData'
 import { dayjs, formatCompact, formatMoney, pct } from '@/lib/format'
 import { useBills, useBudgets, useGoals, useSavingsEntries } from '@/lib/queries'
 import { useUI } from '@/lib/store'
+
+/** Mot dong trong bang dong tien cua vi rieng. */
+function FlowRow({ label, value, tone }: { label: string; value: number; tone: 'in' | 'out' }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-ink-500">{label}</dt>
+      <dd
+        className={clsx(
+          'font-semibold tabular-nums',
+          tone === 'in' ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink-950 dark:text-ink-100',
+        )}
+      >
+        {tone === 'in' ? '+' : '−'}
+        {formatMoney(value)}
+      </dd>
+    </div>
+  )
+}
 
 export default function Home() {
   const { accounts, balanceOf, members, memberById, household, profile } = useApp()
@@ -46,6 +65,13 @@ export default function Home() {
       balanceLabel: `Ví riêng của ${memberById(member)?.display_name ?? 'bạn'}`,
     }
   }, [accounts, balanceOf, member, memberById])
+
+  // Vi cua chinh nguoi dang dang nhap (khong phai vi chung cua nha)
+  const myWallets = useMemo(
+    () => accounts.filter((a) => !a.archived && a.owner_id === profile?.id).map((a) => a.id),
+    [accounts, profile?.id],
+  )
+  const myFlow = useWalletFlow(myWallets)
 
   const budgetTotal = (budgetsQ.data ?? []).reduce((s, b) => s + b.amount, 0)
   const budgetUsed = pct(stats.expense, budgetTotal)
@@ -144,6 +170,61 @@ export default function Home() {
             </b>
           </p>
         </section>
+
+        {/* Tien rieng cua chinh minh - tinh theo VI, khong theo nguoi chi */}
+        {myWallets.length > 0 ? (
+          <section className="card p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="flex items-center gap-2 font-bold">
+                <Wallet size={18} className="text-ink-400" />
+                Ví riêng của tôi
+              </h2>
+              <span className="text-xl font-extrabold tabular-nums">
+                {hideBalance ? '••••' : formatMoney(myFlow.balance)}
+              </span>
+            </div>
+
+            <dl className="mt-3 space-y-1.5 text-[14px]">
+              {myFlow.income > 0 && (
+                <FlowRow label="Thu vào tháng này" value={myFlow.income} tone="in" />
+              )}
+              {myFlow.transferIn > 0 && (
+                <FlowRow label="Nhận chuyển khoản" value={myFlow.transferIn} tone="in" />
+              )}
+              {myFlow.transferOut > 0 && (
+                <FlowRow label="Chuyển sang ví khác" value={myFlow.transferOut} tone="out" />
+              )}
+              {myFlow.expense > 0 && (
+                <FlowRow label="Đã chi tiêu" value={myFlow.expense} tone="out" />
+              )}
+            </dl>
+
+            <div className="mt-2.5 flex items-baseline justify-between gap-3 border-t border-ink-200/60 pt-2.5 dark:border-white/10">
+              <span className="text-[14px] font-semibold text-ink-500">Còn lại trong tháng</span>
+              <span
+                className={clsx(
+                  'font-bold tabular-nums',
+                  myFlow.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500',
+                )}
+              >
+                {formatMoney(myFlow.net, { sign: true })}
+              </span>
+            </div>
+          </section>
+        ) : (
+          <Link to="/more/accounts" className="card flex items-center gap-3 p-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-600/10 text-brand-600 dark:text-brand-400">
+              <Wallet size={20} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold">Tạo ví riêng của bạn</span>
+              <span className="block text-[13px] text-ink-500">
+                Để theo dõi tiền của riêng mình tách khỏi tiền chung của nhà
+              </span>
+            </span>
+            <ChevronRight size={18} className="shrink-0 text-ink-400" />
+          </Link>
+        )}
 
         {/* Ngan sach */}
         {budgetTotal > 0 && (

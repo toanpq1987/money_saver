@@ -21,9 +21,9 @@ import { dayjs, formatCompact, formatMoney, pct } from '@/lib/format'
 import { useUI } from '@/lib/store'
 
 export default function Stats() {
-  const { members } = useApp()
+  const { members, memberById } = useApp()
   const { month, member } = useUI()
-  const { rows, all, stats, byCategory, isLoading } = useMonthData()
+  const { rows, all, stats, byCategory, sharedSplit, isLoading } = useMonthData()
   const trend = useTrend(6)
   const t = useChartTokens()
   const [showTable, setShowTable] = useState(false)
@@ -46,12 +46,17 @@ export default function Stats() {
 
   // So sanh giua cac thanh vien (chi tinh khoan chi)
   const byMember = useMemo(() => {
-    const map = new Map<string, { expense: number; income: number }>()
+    const empty = { expense: 0, income: 0, privateExpense: 0 }
+    const map = new Map<string, typeof empty>()
     for (const tx of all) {
       if (tx.type === 'transfer') continue
-      const cur = map.get(tx.payer_id) ?? { expense: 0, income: 0 }
-      if (tx.type === 'expense') cur.expense += tx.amount
-      else cur.income += tx.amount
+      const cur = map.get(tx.payer_id) ?? { ...empty }
+      if (tx.type === 'expense') {
+        cur.expense += tx.amount
+        if (!tx.is_shared) cur.privateExpense += tx.amount
+      } else {
+        cur.income += tx.amount
+      }
       map.set(tx.payer_id, cur)
     }
     return members.map((m, i) => ({
@@ -59,9 +64,42 @@ export default function Stats() {
       name: m.display_name,
       emoji: m.avatar_emoji,
       color: m.color || t.memberFallback[i % 2],
-      ...(map.get(m.id) ?? { expense: 0, income: 0 }),
+      ...(map.get(m.id) ?? empty),
     }))
   }, [all, members, t.memberFallback])
+
+  /**
+   * Cac dong cua muc "Khoản chung & khoản riêng".
+   * Danh tinh tung dong den tu emoji + nhan chu, mau chi de nhin cho de.
+   */
+  const splitRows = useMemo(() => {
+    if (sharedSplit.total === 0) return []
+    const who = memberById(member)?.display_name
+
+    const list = [
+      {
+        key: 'shared',
+        emoji: '🏠',
+        label: member === 'all' ? 'Khoản chung của gia đình' : `Khoản chung do ${who} chi`,
+        color: t.magnitude(1),
+        amount: sharedSplit.shared,
+      },
+    ]
+
+    for (const m of members) {
+      const amount = sharedSplit.privateByPayer.get(m.id) ?? 0
+      if (amount === 0) continue
+      list.push({
+        key: m.id,
+        emoji: m.avatar_emoji,
+        label: `Khoản riêng của ${m.display_name}`,
+        color: m.color || t.memberFallback[0],
+        amount,
+      })
+    }
+
+    return list.filter((r) => r.amount > 0)
+  }, [sharedSplit, members, member, memberById, t])
 
   const maxDaily = Math.max(...daily.map((d) => d.expense), 1)
   const avgDaily = stats.expense / dayjs(month).daysInMonth()
@@ -274,6 +312,39 @@ export default function Stats() {
               </section>
             )}
 
+            {/* Khoan chung cua gia dinh vs khoan rieng cua tung nguoi */}
+            {splitRows.length > 0 && (
+              <section className="card p-4">
+                <h2 className="font-bold">Khoản chung & khoản riêng</h2>
+                <p className="mt-0.5 text-[13px] text-ink-500">
+                  {member === 'all'
+                    ? 'Khoản riêng không được chia đôi khi cân đối'
+                    : `Chỉ tính những khoản ${memberById(member)?.display_name ?? 'người này'} đã chi`}
+                </p>
+
+                <ul className="mt-4 space-y-3.5">
+                  {splitRows.map((r) => {
+                    const share = pct(r.amount, sharedSplit.total)
+                    return (
+                      <li key={r.key}>
+                        <div className="mb-1.5 flex items-baseline gap-2">
+                          <span className="text-base leading-none">{r.emoji}</span>
+                          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
+                            {r.label}
+                          </span>
+                          <span className="text-[13px] tabular-nums text-ink-500">{share}%</span>
+                          <span className="text-[14px] font-bold tabular-nums">
+                            {formatCompact(r.amount)}
+                          </span>
+                        </div>
+                        <ProgressBar value={share} color={r.color} />
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+
             {/* So sanh giua vo & chong */}
             {members.length > 1 && member === 'all' && (
               <section className="card p-4">
@@ -293,7 +364,8 @@ export default function Stats() {
                         </div>
                         <ProgressBar value={share} color={m.color} />
                         <p className="mt-1 text-[12px] text-ink-500">
-                          Thu: {formatCompact(m.income)}
+                          Trong đó riêng: {formatCompact(m.privateExpense)} · Thu:{' '}
+                          {formatCompact(m.income)}
                         </p>
                       </div>
                     )

@@ -71,6 +71,26 @@ export function useMonthData() {
       .sort((a, b) => b.total - a.total)
   }, [rows, categoryById])
 
+  /**
+   * Tach chi tieu thanh khoan CHUNG cua gia dinh va khoan RIENG cua tung nguoi.
+   *
+   * Tinh tren `rows` (da loc theo tab thanh vien) nen khi bam vao tab cua mot
+   * nguoi, con so se tra loi dung cau hoi "khoan nao la cua rieng nguoi nay".
+   */
+  const sharedSplit = useMemo(() => {
+    let shared = 0
+    const privateByPayer = new Map<string, number>()
+
+    for (const t of rows) {
+      if (t.type !== 'expense') continue
+      if (t.is_shared) shared += t.amount
+      else privateByPayer.set(t.payer_id, (privateByPayer.get(t.payer_id) ?? 0) + t.amount)
+    }
+
+    const privateTotal = [...privateByPayer.values()].reduce((s, v) => s + v, 0)
+    return { shared, privateByPayer, privateTotal, total: shared + privateTotal }
+  }, [rows])
+
   /** Chi tieu chung do tung nguoi ung ra - dung de can doi giua vo & chong. */
   const sharedByPayer = useMemo(() => {
     const map = new Map<string, number>()
@@ -92,6 +112,7 @@ export function useMonthData() {
     rows,
     stats,
     byCategory,
+    sharedSplit,
     sharedByPayer,
   }
 }

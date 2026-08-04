@@ -167,6 +167,12 @@ cho chạy lại nhiều lần vẫn an toàn.
 **Trước khi push, luôn:** `npm run build` **và** `npm test`. Báo cáo trung thực —
 nếu chưa kiểm chứng được phần nào thì nói rõ là chưa.
 
+**Mỗi lần push là một lần tăng `version` trong `package.json`** (1.1.0 → 1.2.0),
+gộp vào commit cuối của lần push đó. Số này hiện ở cuối trang "Thêm" cùng giờ
+build — chủ repo nhìn vào đó để biết lần reload trên iPhone đã ăn bản mới chưa,
+vì PWA trên iOS giữ bản cũ trong cache tới khi service worker cập nhật xong. Bỏ
+qua bước này là người dùng hết cách phân biệt.
+
 **Push chỉ khi được yêu cầu.** Sửa code xong thì tóm tắt rồi hỏi.
 
 ---

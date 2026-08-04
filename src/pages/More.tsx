@@ -12,7 +12,7 @@ import {
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/AppShell'
 import { useApp } from '@/hooks/useApp'
-import { formatMoney } from '@/lib/format'
+import { dayjs, formatMoney } from '@/lib/format'
 
 const ITEMS = [
   {
@@ -73,7 +73,17 @@ export default function More() {
           ))}
         </section>
 
-        <p className="mt-6 text-center text-[12px] text-ink-400">MoneySaver · v1.0</p>
+        {/*
+          Chu repo doc cho nay de biet lan reload vua roi da an ban moi chua -
+          PWA tren iOS giu ban cu trong cache toi khi service worker cap nhat.
+          Nen kem ca gio build: quen tang so phien ban thi van phan biet duoc.
+        */}
+        <p className="mt-6 text-center text-[12px] text-ink-400">
+          MoneySaver · v{__APP_VERSION__}
+        </p>
+        <p className="mt-0.5 text-center text-[11px] text-ink-400/70">
+          Bản dựng {dayjs(__BUILD_TIME__).format('DD/MM/YYYY HH:mm')}
+        </p>
       </div>
     </div>
   )

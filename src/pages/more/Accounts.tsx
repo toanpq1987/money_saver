@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { SubHeader } from '@/components/AppShell'
 import { ACCOUNT_KINDS, AccountSheet } from '@/components/AccountSheet'
 import { EmptyState } from '@/components/ui'
@@ -25,7 +26,18 @@ export default function Accounts() {
 
   return (
     <div className="page-pad">
-      <SubHeader title="Ví & tài khoản" subtitle={`Tổng: ${formatMoney(total)}`} />
+      <SubHeader
+        title="Ví & tài khoản"
+        subtitle={`Số dư hiện tại · Tổng ${formatMoney(total)}`}
+        right={
+          <Link
+            to="/more/statement"
+            className="shrink-0 rounded-xl bg-ink-200/60 px-3 py-2 text-[13px] font-semibold text-ink-700 dark:bg-white/5 dark:text-ink-200"
+          >
+            Sao kê
+          </Link>
+        }
+      />
 
       <div className="space-y-4 px-4">
         {live.length === 0 ? (

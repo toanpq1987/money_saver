@@ -22,6 +22,7 @@ const Categories = lazy(() => import('./pages/more/Categories'))
 const Debts = lazy(() => import('./pages/more/Debts'))
 const Family = lazy(() => import('./pages/more/Family'))
 const Settings = lazy(() => import('./pages/more/Settings'))
+const Statement = lazy(() => import('./pages/more/Statement'))
 
 function PageFallback() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/more/debts" element={<Debts />} />
           <Route path="/more/bills" element={<Bills />} />
           <Route path="/more/accounts" element={<Accounts />} />
+          <Route path="/more/statement" element={<Statement />} />
           <Route path="/more/categories" element={<Categories />} />
           <Route path="/more/family" element={<Family />} />
           <Route path="/more/settings" element={<Settings />} />

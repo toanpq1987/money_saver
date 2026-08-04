@@ -1,6 +1,7 @@
 import {
   ChevronRight,
   CreditCard,
+  FileText,
   HandCoins,
   Repeat,
   Settings,
@@ -21,6 +22,12 @@ const ITEMS = [
     hint: 'Đặt hạn mức cho từng danh mục',
   },
   { to: '/more/accounts', icon: CreditCard, label: 'Ví & tài khoản', hint: 'Ví của từng người và ví chung của nhà' },
+  {
+    to: '/more/statement',
+    icon: FileText,
+    label: 'Sao kê tài khoản',
+    hint: 'Vào ra từng tài khoản trong tháng, đối chiếu với ngân hàng',
+  },
   { to: '/more/categories', icon: Shapes, label: 'Danh mục', hint: 'Tuỳ chỉnh danh mục thu chi' },
   { to: '/more/debts', icon: HandCoins, label: 'Vay & cho vay', hint: 'Theo dõi các khoản nợ' },
   { to: '/more/bills', icon: Repeat, label: 'Hoá đơn định kỳ', hint: 'Tiền nhà, internet, học phí…' },

@@ -25,8 +25,8 @@ tránh thuật ngữ khi không cần.
 Quan trọng — nhiều quyết định thiết kế xuất phát từ đây:
 
 ```
-Lương chồng 75tr ──→ Ví của chồng
-                       ├── 70tr ──→ Ví của vợ    (giao dịch loại "Chuyển")
+Lương chồng 30tr ──→ Ví của chồng
+                       ├── 25tr ──→ Ví của vợ    (giao dịch loại "Chuyển")
                        └──  5tr  ──→ chi tiêu riêng của chồng
 Lương vợ ─────────→ Ví của vợ ──→ chi cho vợ + gia đình
 ```
@@ -34,7 +34,7 @@ Lương vợ ─────────→ Ví của vợ ──→ chi cho v�
 Chồng muốn theo dõi phần tiền riêng của mình **tách khỏi** tiền chung.
 
 **Điểm mấu chốt:** phải tính theo **VÍ**, không theo **NGƯỜI CHI**. Sau khi
-chuyển 70tr cho vợ thì số tiền đó không còn là của chồng nữa, dù `payer_id` vẫn
+chuyển 25tr cho vợ thì số tiền đó không còn là của chồng nữa, dù `payer_id` vẫn
 là chồng. Lọc theo `payer_id` sẽ trả lời sai.
 
 ---
@@ -197,5 +197,5 @@ tính năng theo người vẫn đang ẩn.
 
 Việc còn để dành trong [TODO.md](TODO.md): thông báo đẩy nhắc hoá đơn (cần VAPID
 + Edge Function + chuyển `vite-plugin-pwa` sang `injectManifest`), khoá app bằng
-Face ID (WebAuthn + PIN dự phòng), và chuyển khoản định kỳ để khoản "đưa vợ 70tr"
+Face ID (WebAuthn + PIN dự phòng), và chuyển khoản định kỳ để khoản "đưa vợ 25tr"
 mỗi tháng chỉ cần bấm một nút.

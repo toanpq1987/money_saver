@@ -88,8 +88,8 @@ xuất CSV mở bằng Excel · tạo ví/danh mục ngay trong form giao dịch
 ### Mô hình tiền của nhà này
 
 ```
-Lương chồng 75tr ──→ Ví của chồng
-                       ├── 70tr ──→ Ví của vợ      (loại: Chuyển khoản)
+Lương chồng 30tr ──→ Ví của chồng
+                       ├── 25tr ──→ Ví của vợ      (loại: Chuyển khoản)
                        └──  5tr  ──→ chi tiêu riêng
 Lương vợ ─────────→ Ví của vợ ──→ chi cho vợ + gia đình
 ```
@@ -98,8 +98,8 @@ Mỗi tháng ghi 3 khoản:
 
 | Việc | Loại | Ghi vào |
 |---|---|---|
-| Nhận lương 75tr | **Thu** | tài khoản trong Ví của chồng |
-| Đưa vợ 70tr | **Chuyển** | từ tài khoản của chồng → tài khoản của vợ |
+| Nhận lương 30tr | **Thu** | tài khoản trong Ví của chồng |
+| Đưa vợ 25tr | **Chuyển** | từ tài khoản của chồng → tài khoản của vợ |
 | Tiêu vặt | **Chi** | tài khoản của chồng, **gạt tắt** "khoản chung" |
 
 Chuyển khoản không tính là thu hay chi, nên thống kê không bị đội số.

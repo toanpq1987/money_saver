@@ -201,7 +201,7 @@ export interface WalletFlow {
  * Dong tien cua MOT NHOM VI trong thang dang xem.
  *
  * Dung de tra loi "tien rieng cua toi thang nay vao ra the nao". Khac voi bo
- * loc theo nguoi: sau khi chuyen 70tr cho vo thi so tien do khong con la cua
+ * loc theo nguoi: sau khi chuyen 25tr cho vo thi so tien do khong con la cua
  * minh nua, du minh van la nguoi kiem ra no - nen phai tinh theo VI chu khong
  * theo NGUOI CHI.
  *

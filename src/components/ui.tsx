@@ -26,6 +26,91 @@ import { groupDigits, parseMoneyInput } from '@/lib/format'
  */
 const openSheets: symbol[] = []
 
+/**
+ * Khoa cuon trang nen trong luc sheet mo.
+ *
+ * BAY IOS: `overflow: hidden` tren body KHONG chan duoc cuon tren Safari.
+ * Khi ban phim bat len de go so tien, Safari van cuon ca trang de lo o dang
+ * go ra - keo theo luon lop phu `position: fixed`, lam dau sheet (tieu de va
+ * o So tien) truot len khoi man hinh. Chi `position: fixed` tren body moi
+ * that su khoa duoc, va phai nho vi tri cu de tra lai luc dong.
+ *
+ * Dem so sheet dang mo vi sheet co the long nhau: sheet trong dong lai thi
+ * chua duoc mo khoa, con sheet ngoai van dang mo.
+ */
+let scrollLocks = 0
+let lockedScrollY = 0
+
+function lockBodyScroll() {
+  scrollLocks += 1
+  if (scrollLocks > 1) return
+  lockedScrollY = window.scrollY
+  const s = document.body.style
+  s.position = 'fixed'
+  s.top = `-${lockedScrollY}px`
+  s.left = '0'
+  s.right = '0'
+  s.width = '100%'
+  s.overflow = 'hidden'
+}
+
+function unlockBodyScroll() {
+  scrollLocks = Math.max(0, scrollLocks - 1)
+  if (scrollLocks > 0) return
+  const s = document.body.style
+  s.position = ''
+  s.top = ''
+  s.left = ''
+  s.right = ''
+  s.width = ''
+  s.overflow = ''
+  window.scrollTo(0, lockedScrollY)
+}
+
+interface ViewportBox {
+  /** Khoang cach tu dinh khung trang toi dinh vung con nhin thay. */
+  top: number
+  /** Chieu cao vung con nhin thay (da tru ban phim). */
+  height: number
+  keyboard: boolean
+}
+
+/**
+ * Do vung man hinh con nhin thay duoc, tuc la da tru phan ban phim che mat.
+ *
+ * `100vh` / `100dvh` deo theo khung trang nen khong doi khi ban phim hien ra;
+ * chi `visualViewport` moi biet. Nho no thi sheet cao dung bang cho trong con
+ * lai, nut Luu nam ngay tren ban phim thay vi chui xuong duoi.
+ */
+function useVisibleViewport(active: boolean): ViewportBox | null {
+  const [box, setBox] = useState<ViewportBox | null>(null)
+
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!active || !vv) return
+
+    const update = () => {
+      setBox({
+        top: vv.offsetTop,
+        height: vv.height,
+        // Hut di hon 120px so voi khung trang thi chac chan la ban phim
+        keyboard: window.innerHeight - vv.height > 120,
+      })
+    }
+
+    update()
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+      setBox(null)
+    }
+  }, [active])
+
+  return box
+}
+
 export function Sheet({
   open,
   onClose,
@@ -47,13 +132,13 @@ export function Sheet({
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
+  const viewport = useVisibleViewport(open)
+
   useEffect(() => {
     if (!open) return
     const id = idRef.current!
     openSheets.push(id)
-
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    lockBodyScroll()
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && openSheets[openSheets.length - 1] === id) onCloseRef.current()
@@ -63,7 +148,7 @@ export function Sheet({
     return () => {
       const at = openSheets.lastIndexOf(id)
       if (at >= 0) openSheets.splice(at, 1)
-      document.body.style.overflow = prev
+      unlockBodyScroll()
       window.removeEventListener('keydown', onKey)
     }
   }, [open])
@@ -71,7 +156,12 @@ export function Sheet({
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div
+      className="fixed inset-x-0 z-50 flex items-end justify-center"
+      // Bam vao vung con nhin thay chu khong phai ca khung trang, de ban phim
+      // hien ra thi sheet co lai thay vi tran xuong duoi ban phim.
+      style={viewport ? { top: viewport.top, height: viewport.height } : { top: 0, bottom: 0 }}
+    >
       <div
         className="absolute inset-0 animate-fade-in bg-ink-950/50 backdrop-blur-sm"
         onClick={onClose}
@@ -79,8 +169,13 @@ export function Sheet({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative flex max-h-[92vh] w-full max-w-lg animate-slide-up flex-col
-                   rounded-t-3xl bg-ink-50 shadow-sheet dark:bg-ink-950 sm:mb-4 sm:rounded-3xl"
+        className={clsx(
+          `relative flex w-full max-w-lg animate-slide-up flex-col rounded-t-3xl
+           bg-ink-50 shadow-sheet dark:bg-ink-950 sm:mb-4 sm:rounded-3xl`,
+          // Con ban phim thi tan dung het cho trong; khong thi chua mot duong
+          // nen phia tren de bam ra ngoai dong sheet.
+          viewport?.keyboard ? 'max-h-full' : 'max-h-[92%]',
+        )}
       >
         <div className="flex items-center justify-between gap-3 border-b border-ink-200/60 px-5 py-4 dark:border-white/10">
           <h2 className="truncate text-lg font-bold">{title}</h2>
@@ -96,7 +191,13 @@ export function Sheet({
         <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
 
         {footer && (
-          <div className="safe-bottom border-t border-ink-200/60 px-5 py-4 dark:border-white/10">
+          <div
+            className={clsx(
+              'border-t border-ink-200/60 px-5 py-4 dark:border-white/10',
+              // Chua thanh Home cua iPhone, tru khi ban phim da che mat no roi
+              !viewport?.keyboard && 'safe-bottom',
+            )}
+          >
             {footer}
           </div>
         )}

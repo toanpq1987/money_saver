@@ -96,7 +96,12 @@
   }
 }
 
-/* Ket qua: noi dung khong bi thanh nav duoi che mat */
+/*
+ * Chua cho noi dung cuon het len tren, khong bi che mat.
+ * Phai tru ca thanh nav LAN nut "+" noi ben tren no:
+ *   nut cao 3.5rem, dat cach nav 1rem  ->  can it nhat 4.5rem
+ * Lay 5.5rem de dong cuoi cung con thoat ra khoi nut mot khoang.
+ */
 .page-pad {
-  padding-bottom: calc(var(--nav-h) + var(--sab) + 1.5rem);
+  padding-bottom: calc(var(--nav-h) + var(--sab) + 5.5rem);
 }

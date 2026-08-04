@@ -2,8 +2,11 @@ import clsx from 'clsx'
 import { ArrowRightLeft, Plus, Trash2, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useApp, useMe } from '@/hooks/useApp'
-import { errorMessage } from '@/lib/errors'
+import { useActivityNames } from '@/hooks/useActivityNames'
+import { describeChanges } from '@/lib/activity'
+import { errorMessage, isConflict, type ConflictError } from '@/lib/errors'
 import { dateKey, dayjs } from '@/lib/format'
+import { diffRecords } from '@/lib/patch'
 import { useDeleteTransaction, useSaveTransaction } from '@/lib/queries'
 import { groupAccountsByOwner } from '@/lib/wallets'
 import type { Transaction, TxType } from '@/lib/types'
@@ -42,6 +45,12 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
   /** Dang mo o tao vi moi cho o nao: 'from' = Ví/Từ ví, 'to' = Đến ví. */
   const [addingAccount, setAddingAccount] = useState<'from' | 'to' | null>(null)
   const [addingCategory, setAddingCategory] = useState(false)
+  /**
+   * Ban ghi doc duoc luc mo form. Luc Luu se so voi no de biet nguoi dung
+   * that su doi o nao, va de phat hien nguoi kia co vua sua cung o hay khong.
+   */
+  const [baseline, setBaseline] = useState<Transaction | null>(null)
+  const names = useActivityNames()
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.archived), [accounts])
 
@@ -59,19 +68,25 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
     [categories, type],
   )
 
+  /** Do noi dung mot giao dich vao form va ghi nho no lam moc so sanh. */
+  const fillFrom = (tx: Transaction) => {
+    setType(tx.type)
+    setAmount(tx.amount)
+    setCategoryId(tx.category_id)
+    setAccountId(tx.account_id)
+    setToAccountId(tx.to_account_id)
+    setPayerId(tx.payer_id)
+    setIsShared(tx.is_shared)
+    setNote(tx.note)
+    setDate(tx.occurred_at)
+    setBaseline(tx)
+  }
+
   // Nap lai form moi lan mo sheet
   useEffect(() => {
     if (!open) return
     if (transaction) {
-      setType(transaction.type)
-      setAmount(transaction.amount)
-      setCategoryId(transaction.category_id)
-      setAccountId(transaction.account_id)
-      setToAccountId(transaction.to_account_id)
-      setPayerId(transaction.payer_id)
-      setIsShared(transaction.is_shared)
-      setNote(transaction.note)
-      setDate(transaction.occurred_at)
+      fillFrom(transaction)
     } else {
       setType(defaultType)
       setAmount(0)
@@ -82,6 +97,7 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
       setIsShared(true)
       setNote('')
       setDate(dateKey(new Date()))
+      setBaseline(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, transaction?.id])
@@ -101,34 +117,102 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
     (type !== 'transfer' && !categoryId) ||
     (type === 'transfer' && (!toAccountId || toAccountId === accountId))
 
-  const submit = async () => {
+  /** Noi dung form hien tai, dung chung cho ca luu thuong lan luu de. */
+  const formValues = () => ({
+    household_id: household!.id,
+    type,
+    amount,
+    occurred_at: date,
+    category_id: type === 'transfer' ? null : categoryId,
+    account_id: accountId,
+    to_account_id: type === 'transfer' ? toAccountId : null,
+    payer_id: payerId,
+    is_shared: type === 'transfer' ? true : isShared,
+    note: note.trim(),
+    created_by: me.id,
+  })
+
+  const submit = async (opts: { force?: boolean; asNew?: boolean } = {}) => {
     if (invalid || !household) return
     try {
-      const { pending } = await save.mutateAsync({
-        id: transaction?.id,
-        household_id: household.id,
-        type,
-        amount,
-        occurred_at: date,
-        category_id: type === 'transfer' ? null : categoryId,
-        account_id: accountId,
-        to_account_id: type === 'transfer' ? toAccountId : null,
-        payer_id: payerId,
-        is_shared: type === 'transfer' ? true : isShared,
-        note: note.trim(),
-        created_by: me.id,
+      const { pending, unchanged } = await save.mutateAsync({
+        ...formValues(),
+        id: opts.asNew ? undefined : transaction?.id,
+        baseline: opts.asNew ? null : baseline,
+        force: opts.force,
       })
-      toast(
-        pending
-          ? 'Đã lưu vào máy · sẽ gửi khi có mạng'
-          : transaction
-            ? 'Đã cập nhật giao dịch'
-            : 'Đã lưu giao dịch',
-      )
+
+      if (unchanged) {
+        toast('Không có gì thay đổi')
+      } else {
+        toast(
+          pending
+            ? 'Đã lưu vào máy · sẽ gửi khi có mạng'
+            : transaction && !opts.asNew
+              ? 'Đã cập nhật giao dịch'
+              : 'Đã lưu giao dịch',
+        )
+      }
       onClose()
     } catch (e) {
+      if (isConflict(e)) {
+        await resolveConflict(e)
+        return
+      }
       toast(errorMessage(e, 'Lưu thất bại'), 'error')
     }
+  }
+
+  /**
+   * Nguoi kia vua dung vao dung o minh sap ghi. Khong tu quyet ho: bay ra ho
+   * da doi gi roi de nguoi dung chon, vi chi ho moi biet con so nao moi dung.
+   */
+  const resolveConflict = async (e: ConflictError) => {
+    if (e.deleted) {
+      const again = await confirm({
+        title: 'Khoản này vừa bị xoá',
+        message: 'Người kia đã xoá khoản này trên máy của họ. Ghi lại thành một khoản mới nhé?',
+        confirmLabel: 'Ghi thành khoản mới',
+        cancelLabel: 'Bỏ qua',
+      })
+      if (again) await submit({ asNew: true })
+      else onClose()
+      return
+    }
+
+    const current = (e.current as Transaction | null) ?? null
+    const lines = describeChanges(
+      diffRecords(baseline as unknown as Record<string, unknown>, current as unknown as Record<string, unknown>),
+      names,
+    )
+
+    const overwrite = await confirm({
+      title: 'Người kia vừa sửa khoản này',
+      message: (
+        <div className="space-y-3">
+          {lines.length > 0 && (
+            <ul className="space-y-1.5">
+              {lines.map((l) => (
+                <li key={l.field} className="text-sm">
+                  <span className="font-semibold">{l.label}: </span>
+                  <span className="text-ink-500 line-through">{l.from}</span>
+                  <span className="mx-1.5">→</span>
+                  <span className="font-semibold">{l.to}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p>Lấy bản của họ thì thay đổi bạn vừa gõ sẽ bị bỏ.</p>
+        </div>
+      ),
+      confirmLabel: 'Vẫn lưu đè',
+      cancelLabel: 'Lấy bản của họ',
+      danger: true,
+    })
+
+    if (overwrite) await submit({ force: true })
+    else if (current) fillFrom(current)
+    else onClose()
   }
 
   const del = async () => {
@@ -161,7 +245,11 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
               <Trash2 size={18} />
             </button>
           )}
-          <button className="btn-primary flex-1" disabled={invalid || save.isPending} onClick={submit}>
+          <button
+            className="btn-primary flex-1"
+            disabled={invalid || save.isPending}
+            onClick={() => void submit()}
+          >
             {save.isPending ? <Spinner /> : null}
             {transaction ? 'Lưu thay đổi' : 'Thêm giao dịch'}
           </button>

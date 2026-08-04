@@ -153,5 +153,24 @@ export interface RecurringBill {
   created_at: string
 }
 
+/**
+ * Mot dong nhat ky do trigger ben database ghi ra (xem migration 0003).
+ * Chi doc, khong bao gio ghi tu app.
+ */
+export interface ActivityLog {
+  id: string
+  household_id: string
+  /** Null khi thay doi khong den tu mot phien dang nhap (vd chay tay tren SQL). */
+  actor_id: string | null
+  table_name: string
+  record_id: string
+  action: 'insert' | 'update' | 'delete'
+  /** Chi cac cot da doi. Null voi thao tac them/xoa. */
+  changed: Record<string, { from: unknown; to: unknown }> | null
+  /** Ban ghi sau thay doi, hoac ban ghi truoc khi bi xoa. */
+  snapshot: Record<string, unknown> | null
+  created_at: string
+}
+
 /** Bo loc "Tat ca / Chong / Vo" o dau man hinh. */
 export type MemberFilter = string | 'all'

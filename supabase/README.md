@@ -19,6 +19,7 @@ exists`, `create or replace function`, `drop policy if exists` trước khi
 |---|---|
 | `20260801000000_initial_schema.sql` | Bảng, RLS, quyền truy cập, view số dư, RPC tạo/tham gia gia đình, bật realtime |
 | `20260801010000_fix_invite_code_generation.sql` | Sửa `create_household`: đổi `gen_random_bytes()` (pgcrypto, không gọi được vì `search_path`) sang `gen_random_uuid()` |
+| `20260804140000_activity_log.sql` | Bảng `activity_log` + trigger ghi nhật ký cho `transactions` và `accounts`. **Chưa chạy file này thì trang Nhật ký trong app sẽ báo "Chưa bật nhật ký"** |
 
 ## Chạy migration
 

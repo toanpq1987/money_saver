@@ -53,7 +53,9 @@ src/
     palette.ts      màu biểu đồ đã qua validate mù màu
     format.ts       tiền VNĐ, ngày tháng, parse "50k"/"1,2tr"
     finance.ts      lãi sổ tiết kiệm
-    errors.ts       đọc message từ lỗi Supabase (không phải Error)
+    patch.ts        so form với bản gốc, chỉ gửi ô đã đổi  ⭐ có test
+    activity.ts     dịch nhật ký thô của database sang tiếng Việt
+    errors.ts       đọc message từ lỗi Supabase (không phải Error) + ConflictError
     store.ts        Zustand: tháng đang xem, bộ lọc thành viên, theme
   hooks/
     useApp.tsx      context gốc: session, profile, household, members,
@@ -102,6 +104,28 @@ trị**, danh tính đến từ icon + tên trên từng dòng. Chỉ biểu đ�
 (Thu/Chi, Chồng/Vợ) mới dùng màu phân loại — cặp màu đó đã chạy validator và pass
 ở cả hai chế độ sáng/tối. **Đừng đổi hex trong `palette.ts` nếu chưa chạy lại
 validator** (skill `dataviz`, `scripts/validate_palette.js`).
+
+**Xung đột sửa cùng lúc: khoá theo Ô, không khoá theo DÒNG.** Lúc Lưu, form so
+với bản đọc được khi mở (`baseline`) và chỉ gửi những ô thật sự đổi
+(`lib/patch.ts`), kèm điều kiện "các ô này vẫn đang giữ giá trị cũ"
+(`OutboxOp.guard`). Nhờ vậy vợ sửa số tiền, chồng sửa ghi chú thì **cả hai cùng
+được giữ**, không ai đè ai. Nếu khoá cả dòng bằng `updated_at` thì tình huống đó
+vẫn bị chặn — hộp thoại bật lên vô cớ, vài lần là người dùng bấm "Vẫn lưu đè"
+theo phản xạ và mọi thứ quay về chỗ cũ.
+
+**`guard` không bao giờ được xuống hàng đợi offline** (`enqueue` gỡ nó ra). Thao
+tác offline có thể nằm cả ngày; giữ guard thì đến lúc đẩy lên giá trị cũ chắc
+chắn đã khác và lệnh nào cũng bị từ chối. Offline có chủ đích là "ai gửi sau thì
+thắng", dấu vết vẫn còn đủ trong nhật ký.
+
+**Update phải `.select()`.** PostgREST coi update trúng 0 dòng là **thành công**.
+Không kiểm tra thì app báo "Đã lưu" trong khi bản ghi đã bị người kia xoá mất từ
+đời nào. Trúng 0 dòng → `ConflictError`.
+
+**Nhật ký ghi bằng trigger ở database, không ghi ở app.** Hai lý do: thao tác
+đẩy lên từ hàng đợi offline cũng được ghi đầy đủ, và không thể sót do quên gọi
+hàm log ở một nhánh code nào đó. Bảng chỉ cấp quyền `select` — người dùng không
+xoá được dấu vết của chính mình.
 
 **Số dư luôn là tích luỹ toàn thời gian**, tính từ view `v_account_balances`
 (= `opening_balance` + mọi giao dịch). Khác hẳn "chênh lệch trong tháng". Đã
@@ -179,11 +203,14 @@ qua bước này là người dùng hết cách phân biệt.
 
 ## Test
 
-`npm test` — 23 test, chạy bằng Vitest (môi trường `node`, có
+`npm test` — 39 test, chạy bằng Vitest (môi trường `node`, có
 `src/test/setup.ts` giả lập `localStorage` và `navigator.onLine`).
 
 - `src/lib/outbox.test.ts` — hàng đợi offline: thứ tự, mạng chập chờn, lỗi máy
-  chủ bị loại bỏ, sống sót qua lần mở app mới
+  chủ bị loại bỏ, sống sót qua lần mở app mới, và phần chống ghi đè (guard được
+  gắn vào lệnh, trúng 0 dòng thì báo xung đột, guard không xuống hàng đợi)
+- `src/lib/patch.test.ts` — so form với bản gốc: numeric dạng chuỗi của Postgres,
+  null vs undefined, ô bị xoá trắng, `false` không phải là "trống"
 - `src/hooks/useStatement.test.ts` — phép tính sao kê: số dư đầu kỳ, cộng dồn,
   `đầu kỳ + vào − ra = cuối kỳ`, chuyển khoản hai chiều, thẻ tín dụng âm
 

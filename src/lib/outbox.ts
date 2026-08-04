@@ -1,3 +1,4 @@
+import { ConflictError } from './errors'
 import { supabase } from './supabase'
 
 /**
@@ -25,6 +26,17 @@ export interface OutboxOp {
   values?: Record<string, unknown>
   /** Dieu kien loc cho update / delete. */
   match?: Record<string, string>
+  /**
+   * "Chi ghi de neu cac o nay VAN dang giu dung gia tri toi da doc." Khong
+   * khop dong nao => ConflictError.
+   *
+   * Khoa theo TUNG O chu khong theo ca dong: neu khoa ca dong thi vo sua so
+   * tien, chong sua ghi chu - hai o khac han nhau - van bi chan, dung cai
+   * tinh huong ma viec chi gui o da doi sinh ra de xu ly em xuoi.
+   *
+   * Khong bao gio duoc luu xuong hang doi: xem enqueue().
+   */
+  guard?: Record<string, string | number | boolean | null>
   onConflict?: string
 }
 
@@ -127,9 +139,22 @@ async function execute(op: OutboxOp): Promise<void> {
         op.onConflict ? { onConflict: op.onConflict } : undefined,
       ))
       break
-    case 'update':
-      ({ error } = await table.update(op.values ?? {}).match(op.match ?? {}))
-      break
+    case 'update': {
+      let q = table.update(op.values ?? {}).match(op.match ?? {})
+      for (const [column, expected] of Object.entries(op.guard ?? {})) {
+        // Cot rong phai dung .is(): `eq.null` khong so sanh duoc voi NULL.
+        q = expected === null ? q.is(column, null) : q.eq(column, expected)
+      }
+
+      // Phai .select() moi biet lenh co cham vao dong nao khong: PostgREST coi
+      // update trung 0 dong la THANH CONG. Khong kiem tra thi app bao "Da luu"
+      // trong khi ban ghi da bi nguoi kia xoa mat tu doi nao.
+      const { data, error: updateError } = await q.select('id')
+
+      if (updateError) throw updateError
+      if (!data || data.length === 0) throw new ConflictError()
+      return
+    }
     case 'delete':
       ({ error } = await table.delete().match(op.match ?? {}))
       break
@@ -139,7 +164,13 @@ async function execute(op: OutboxOp): Promise<void> {
 }
 
 function enqueue(op: Omit<OutboxOp, 'opId' | 'queuedAt'>) {
-  queue.push({ ...op, opId: newId(), queuedAt: Date.now() })
+  // Bo `guard` truoc khi xep hang doi. Thao tac nam trong hang doi co the toi
+  // may chu sau ca ngay - luc do `updated_at` gan nhu chac chan da khac, nen
+  // giu guard lai thi moi lan ghi offline deu bi tu choi. Da chon offline la
+  // "ai gui sau thi thang", va hoi nguoi dung ve mot viec ho lam hom qua thi
+  // roi hon la giup. Dau vet van con day du trong nhat ky hoat dong.
+  const { guard: _dropped, ...rest } = op
+  queue.push({ ...rest, opId: newId(), queuedAt: Date.now() })
   save()
   notify()
 }

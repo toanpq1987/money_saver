@@ -13,6 +13,7 @@ PWA cài lên iPhone như app thật. Hai máy dùng chung một sổ, đồng b
 - [Khái niệm cần nắm: Ví và Tài khoản](#khái-niệm-cần-nắm-ví-và-tài-khoản)
 - [Có gì trong app](#có-gì-trong-app)
 - [Dùng hằng ngày](#dùng-hằng-ngày)
+  - [Hai người cùng sửa một khoản](#hai-người-cùng-sửa-một-khoản)
 - [Cài đặt từ đầu](#cài-đặt-từ-đầu)
 - [Cài lên iPhone](#cài-lên-iphone)
 - [Thêm người thứ hai vào sổ](#thêm-người-thứ-hai-vào-sổ)
@@ -60,9 +61,9 @@ mình là "Ví của tôi", vợ thấy ví của vợ là "Ví của tôi".
 | **Giao dịch** | Nhập chi/thu/chuyển khoản, tìm kiếm, lọc theo loại · danh mục · chung/riêng |
 | **Thống kê** | Chọn khoảng: tháng / 3 tháng / 6 tháng / năm / **toàn thời gian** · số dư hiện tại từng ví · xu hướng · chi theo ngày · cơ cấu danh mục · khoản chung vs riêng · ai chi nhiều hơn |
 | **Tiết kiệm** | Quỹ mục tiêu có tiến độ & gợi ý gửi bao nhiêu mỗi tháng · sổ tiết kiệm ngân hàng (kỳ hạn, lãi suất, ngày đáo hạn, lãi dự kiến 3 kiểu trả lãi) |
-| **Thêm** | Ngân sách · Ví & tài khoản · **Sao kê tài khoản** · Danh mục · Vay & cho vay · Hoá đơn định kỳ · Gia đình · Cài đặt |
+| **Thêm** | Ngân sách · Ví & tài khoản · **Sao kê tài khoản** · Danh mục · **Nhật ký** · Vay & cho vay · Hoá đơn định kỳ · Gia đình · Cài đặt |
 
-### Ba tính năng đáng chú ý
+### Bốn tính năng đáng chú ý
 
 **Tab riêng của từng người** — chip `Cả nhà / Ví của tôi / Ví của vợ` lọc mọi số
 liệu. Mỗi giao dịch còn đánh dấu được là **khoản chung** (tính vào ngân sách và
@@ -75,6 +76,10 @@ dư luỹ kế**, đối chiếu thẳng với sao kê ngân hàng gửi về.
 **Ghi được khi mất mạng** — bấm Lưu là xong ngay, số liệu cập nhật liền kể cả số
 dư. Giao dịch chưa gửi có nhãn *"chờ gửi"*; có mạng lại tự gửi đúng thứ tự. Tắt
 app hay khởi động lại máy cũng không mất.
+
+**Nhật ký** — *Thêm → Nhật ký*. Ai thêm, sửa, xoá gì, lúc mấy giờ, và với khoản
+sửa thì ghi rõ **từ giá trị nào sang giá trị nào**. Xem [Hai người cùng sửa một
+khoản](#hai-người-cùng-sửa-một-khoản) bên dưới.
 
 ### Tiện nhỏ
 
@@ -120,6 +125,27 @@ Trong form thêm giao dịch, công tắc **"Khoản chung của gia đình"** m
 **bật**. Khoản nào chi riêng (cà phê với bạn, đồ cá nhân…) thì gạt tắt — nếu
 không, thống kê chung/riêng sẽ thấy 100% là khoản chung.
 
+### Hai người cùng sửa một khoản
+
+Hai vợ chồng cùng mở một giao dịch thì app xử lý thế này:
+
+**Sửa hai ô khác nhau → cả hai cùng được giữ.** Vợ đổi số tiền, chồng đổi ghi
+chú thì không ai đè ai, không có hộp thoại nào bật lên. App chỉ gửi đúng ô bạn
+vừa sửa lên máy chủ chứ không gửi lại cả giao dịch.
+
+**Sửa cùng một ô → app hỏi trước khi ghi đè.** Hộp thoại hiện rõ người kia vừa
+đổi gì (*"Số tiền: 200.000 ₫ → 250.000 ₫"*) rồi để bạn chọn **Lấy bản của họ**
+hoặc **Vẫn lưu đè**. App không tự quyết, vì chỉ bạn mới biết con số nào đúng.
+
+**Người kia đã xoá khoản đó → app nói thật.** Trước đây app báo "Đã cập nhật"
+trong khi chẳng ghi được gì; giờ nó hỏi bạn có muốn ghi lại thành khoản mới không.
+
+**Ghi khi mất mạng thì ai gửi sau người đó thắng.** Cố tình để vậy: thao tác có
+thể nằm trong hàng đợi cả ngày, hỏi bạn về một việc làm từ hôm qua thì rối hơn
+là giúp. Bù lại, mọi thay đổi đều còn dấu vết trong **Nhật ký**.
+
+Cần tra lại thì vào *Thêm → Nhật ký*: ai làm, lúc mấy giờ, đổi từ đâu sang đâu.
+
 ---
 
 ## Cài đặt từ đầu
@@ -139,7 +165,7 @@ không, thống kê chung/riêng sẽ thấy 100% là khoản chung.
 **SQL Editor → New query** → chạy lần lượt các file trong
 [`supabase/migrations/`](supabase/migrations/) **theo đúng thứ tự tên** → **Run**.
 
-Kiểm chứng: mở **Table Editor**, phải thấy **11 bảng**.
+Kiểm chứng: mở **Table Editor**, phải thấy **12 bảng**.
 
 > Muốn đổi database về sau thì **thêm file migration mới**, đừng sửa file cũ.
 > Lý do và cách dùng Supabase CLI nằm trong

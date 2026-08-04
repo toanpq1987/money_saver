@@ -16,6 +16,7 @@ const Stats = lazy(() => import('./pages/Stats'))
 const Savings = lazy(() => import('./pages/Savings'))
 const More = lazy(() => import('./pages/More'))
 const Accounts = lazy(() => import('./pages/more/Accounts'))
+const Activity = lazy(() => import('./pages/more/Activity'))
 const Bills = lazy(() => import('./pages/more/Bills'))
 const Budgets = lazy(() => import('./pages/more/Budgets'))
 const Categories = lazy(() => import('./pages/more/Categories'))
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/more/bills" element={<Bills />} />
           <Route path="/more/accounts" element={<Accounts />} />
           <Route path="/more/statement" element={<Statement />} />
+          <Route path="/more/activity" element={<Activity />} />
           <Route path="/more/categories" element={<Categories />} />
           <Route path="/more/family" element={<Family />} />
           <Route path="/more/settings" element={<Settings />} />

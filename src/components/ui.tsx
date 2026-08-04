@@ -419,7 +419,14 @@ export function ProgressBar({
 // Hop thoai xac nhan dung chung toan app
 // ---------------------------------------------------------------------------
 
-type ConfirmOptions = { title: string; message?: string; confirmLabel?: string; danger?: boolean }
+type ConfirmOptions = {
+  title: string
+  message?: ReactNode
+  confirmLabel?: string
+  /** Doi nhan nut trai khi "Huỷ" khong dien ta dung lua chon con lai. */
+  cancelLabel?: string
+  danger?: boolean
+}
 type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>
 
 const ConfirmContext = createContext<ConfirmFn>(async () => false)
@@ -446,10 +453,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={value}>
       {children}
       <Sheet open={Boolean(state)} onClose={() => close(false)} title={state?.title}>
-        <p className="text-[15px] text-ink-600 dark:text-ink-300">{state?.message}</p>
+        <div className="text-[15px] text-ink-600 dark:text-ink-300">{state?.message}</div>
         <div className="mt-6 flex gap-3">
           <button className="btn-ghost flex-1" onClick={() => close(false)}>
-            Huỷ
+            {state?.cancelLabel ?? 'Huỷ'}
           </button>
           <button
             className={state?.danger ? 'btn btn-danger flex-1' : 'btn-primary flex-1'}

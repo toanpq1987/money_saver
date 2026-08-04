@@ -11,11 +11,14 @@ import {
   applyTransactionLocally,
   findCachedTransaction,
 } from './optimistic'
+import { ConflictError, isConflict } from './errors'
 import { newId, sendOrQueue } from './outbox'
+import { changedFields } from './patch'
 import { supabase } from './supabase'
 import type {
   Account,
   AccountBalance,
+  ActivityLog,
   Budget,
   Category,
   Debt,
@@ -45,6 +48,7 @@ export const qk = {
   deposits: ['deposits'] as const,
   debts: ['debts'] as const,
   bills: ['bills'] as const,
+  activity: ['activity'] as const,
 }
 
 // ---------------------------------------------------------------------------
@@ -225,46 +229,122 @@ export type NewTransaction = Omit<
   'id' | 'household_id' | 'created_at' | 'updated_at' | 'created_by'
 >
 
+export interface SaveTransactionInput extends NewTransaction {
+  id?: string
+  household_id: string
+  created_by: string
+  /**
+   * Ban ghi doc duoc luc MO form. Dung de biet nguoi dung that su doi nhung o
+   * nao, va de chan ghi de neu may chu da khac di. Bo trong = them moi.
+   */
+  baseline?: Transaction | null
+  /** Nguoi dung da xem canh bao xung dot va chon ghi de. */
+  force?: boolean
+}
+
 export function useSaveTransaction() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (
-      input: NewTransaction & { id?: string; household_id: string; created_by: string },
-    ) => {
+    mutationFn: async (input: SaveTransactionInput) => {
       const isNew = !input.id
       // Sinh id ngay tai may de ban ghi tao khi offline van co danh tinh on dinh.
       const id = input.id ?? newId()
-      const { id: _ignored, ...values } = input
+      const { id: _ignored, baseline = null, force = false, ...rest } = input
+      const values = rest as Record<string, unknown>
+      const now = new Date().toISOString()
 
-      const previous = isNew ? null : (findCachedTransaction(qc, id) ?? null)
-      const row: Transaction = {
-        ...(previous ?? {}),
-        ...values,
-        id,
-        created_at: previous?.created_at ?? new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Transaction
+      if (isNew) {
+        const row = { ...values, id, created_at: now, updated_at: now } as Transaction
+        const pending = await sendOrQueue({
+          table: 'transactions',
+          action: 'insert',
+          values: { ...values, id },
+        })
+        applyTransactionLocally(qc, row, 'insert', pending)
+        applyBalanceLocally(qc, row, null)
+        return { id, pending, unchanged: false }
+      }
 
-      const pending = await sendOrQueue(
-        isNew
-          ? { table: 'transactions', action: 'insert', values: { ...values, id } }
-          : {
-              table: 'transactions',
-              action: 'update',
-              // created_by khong duoc phep doi khi sua
-              values: stripKeys(values, ['created_by']),
-              match: { id },
-            },
+      // created_by khong duoc phep doi khi sua
+      const patch = changedFields(
+        baseline as Record<string, unknown> | null,
+        stripKeys(values, ['created_by']),
       )
+      if (Object.keys(patch).length === 0) return { id, pending: false, unchanged: true }
 
-      applyTransactionLocally(qc, row, isNew ? 'insert' : 'update', pending)
+      const pending = await sendGuarded({
+        table: 'transactions',
+        action: 'update',
+        values: patch,
+        match: { id },
+        // Chi ghi de khi cac o minh sap ghi VAN dang giu gia tri luc minh doc.
+        // Bo qua khi nguoi dung da xem canh bao va chon "Vẫn lưu đè".
+        guard: force ? undefined : guardFrom(baseline, patch),
+      })
+
+      // Gop patch len ban MOI NHAT dang co, khong phai len baseline: nho vay o
+      // nguoi kia vua sua van giu nguyen thay vi bi keo nguoc ve gia tri cu.
+      const previous = findCachedTransaction(qc, id) ?? baseline ?? null
+      const row = { ...(previous ?? {}), ...patch, id, updated_at: now } as Transaction
+
+      applyTransactionLocally(qc, row, 'update', pending)
       applyBalanceLocally(qc, row, previous)
-      return { id, pending }
+      return { id, pending, unchanged: false }
     },
-    onSuccess: ({ pending }) => {
-      if (!pending) invalidateMoney(qc)
+    onSuccess: ({ pending, unchanged }) => {
+      if (!pending && !unchanged) invalidateMoney(qc)
     },
   })
+}
+
+/**
+ * Dieu kien "cac o toi sap ghi van dang nhu luc toi doc", lay tu chinh ban
+ * ghi goc. Chi lay dung nhung o nam trong patch: cac o khac nguoi kia co doi
+ * cung khong lien quan gi den minh.
+ */
+function guardFrom(
+  baseline: Transaction | null,
+  patch: Record<string, unknown>,
+): Record<string, string | number | boolean | null> | undefined {
+  if (!baseline) return undefined
+
+  const guard: Record<string, string | number | boolean | null> = {}
+  for (const key of Object.keys(patch)) {
+    const value = (baseline as unknown as Record<string, unknown>)[key]
+    if (value === undefined) continue
+    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      guard[key] = value
+    }
+  }
+  return Object.keys(guard).length > 0 ? guard : undefined
+}
+
+/**
+ * Gui lenh sua co kem guard, va khi bi tu choi thi tra loi cho duoc cau hoi
+ * "nguoi kia sua hay xoa mat roi?" - hai truong hop nay can hai cach xu ly
+ * khac han nhau o giao dien.
+ */
+async function sendGuarded(op: Parameters<typeof sendOrQueue>[0]): Promise<boolean> {
+  try {
+    return await sendOrQueue(op)
+  } catch (e) {
+    if (!isConflict(e) || !op.match?.id) throw e
+    throw await describeConflict(op.table, op.match.id)
+  }
+}
+
+async function describeConflict(table: string, id: string): Promise<ConflictError> {
+  try {
+    const { data } = await supabase.from(table).select('*').eq('id', id).maybeSingle()
+    if (!data) return new ConflictError({ deleted: true })
+    const row = data as Record<string, unknown>
+    return new ConflictError({
+      current: 'amount' in row ? { ...row, amount: num(row.amount) } : row,
+    })
+  } catch {
+    // Khong hoi duoc may chu thi van bao xung dot, chi la khong biet ro vi sao.
+    return new ConflictError()
+  }
 }
 
 export function useDeleteTransaction() {
@@ -525,6 +605,33 @@ export const useSaveBill = () => useUpsert<Partial<RecurringBill>>('recurring_bi
 export const useDeleteBill = () => useRemove('recurring_bills', [[...qk.bills]])
 
 // ---------------------------------------------------------------------------
+// Nhat ky hoat dong - chi doc, do trigger ben database ghi ra
+// ---------------------------------------------------------------------------
+
+/** Bao nhieu dong gan nhat duoc tai ve. Du de tra loi "vua roi ai lam gi". */
+const ACTIVITY_LIMIT = 200
+
+export function useActivityLog(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.activity,
+    enabled,
+    staleTime: 15_000,
+    // Chua chay migration 0003 thi bang nay chua ton tai. Thu lai 3 lan cung
+    // khong lam no hien ra, chi lam nguoi dung ngoi cho lau hon.
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('activity_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(ACTIVITY_LIMIT)
+      if (error) throw error
+      return (data ?? []) as ActivityLog[]
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Realtime: hai dien thoai thay thay doi cua nhau ngay lap tuc
 // ---------------------------------------------------------------------------
 
@@ -532,6 +639,7 @@ const REALTIME_MAP: Record<string, readonly unknown[][]> = {
   transactions: [['transactions'], [...qk.balances]],
   categories: [[...qk.categories]],
   accounts: [[...qk.accounts], [...qk.balances]],
+  activity_log: [[...qk.activity]],
   budgets: [['budgets']],
   savings_goals: [[...qk.goals]],
   savings_entries: [[...qk.savingsEntries]],

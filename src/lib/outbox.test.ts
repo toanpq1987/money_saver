@@ -8,12 +8,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  */
 
 /** Ghi lai moi lenh da thuc su gui len "may chu". */
-const sent: { table: string; action: string; payload: unknown }[] = []
+const sent: {
+  table: string
+  action: string
+  payload: unknown
+  /** Cac dieu kien .eq()/.is() gan them vao lenh update. */
+  guard?: Record<string, unknown>
+}[] = []
 
 /** Loi se duoc nem ra o cac lan goi tiep theo (mo phong su co). */
 let failWith: unknown = null
 /** So lan con phai nem loi. Infinity = hong lien tuc. */
 let failRemaining = Infinity
+/** So dong ma lenh update se bao la da cham toi. 0 = khong khop dong nao. */
+let updateMatches = 1
 
 vi.mock('./supabase', () => {
   const boom = () => {
@@ -23,6 +31,39 @@ vi.mock('./supabase', () => {
     }
   }
   const result = () => ({ error: null })
+
+  /**
+   * Bat chuoc query builder cua PostgREST: .match().eq().is().select() noi
+   * duoi nhau, va chi thuc su chay khi toi .select().
+   */
+  const updateBuilder = (table: string, values: unknown) => {
+    const guard: Record<string, unknown> = {}
+    let match: unknown = {}
+
+    const builder = {
+      match(m: unknown) {
+        match = m
+        return builder
+      },
+      eq(column: string, value: unknown) {
+        guard[column] = value
+        return builder
+      },
+      is(column: string, value: unknown) {
+        guard[column] = value
+        return builder
+      },
+      async select() {
+        boom()
+        sent.push({ table, action: 'update', payload: { values, match }, guard })
+        return {
+          data: Array.from({ length: updateMatches }, () => ({ id: 'x' })),
+          error: null,
+        }
+      },
+    }
+    return builder
+  }
 
   return {
     supabase: {
@@ -37,13 +78,7 @@ vi.mock('./supabase', () => {
           sent.push({ table, action: 'upsert', payload: values })
           return result()
         },
-        update: (values: unknown) => ({
-          match: async (m: unknown) => {
-            boom()
-            sent.push({ table, action: 'update', payload: { values, match: m } })
-            return result()
-          },
-        }),
+        update: (values: unknown) => updateBuilder(table, values),
         delete: () => ({
           match: async (m: unknown) => {
             boom()
@@ -56,6 +91,7 @@ vi.mock('./supabase', () => {
   }
 })
 
+import { ConflictError } from './errors'
 import {
   clearOutbox,
   flushOutbox,
@@ -81,6 +117,7 @@ beforeEach(() => {
   sent.length = 0
   failWith = null
   failRemaining = Infinity
+  updateMatches = 1
   localStorage.clear()
   clearOutbox()
   setOnline(true)
@@ -230,6 +267,60 @@ describe('ghi khi mat mang', () => {
 
     await flushOutbox()
     expect(sent.map((s) => (s.payload as { id: string }).id)).toEqual(['cu', 'moi'])
+  })
+})
+
+describe('chan ghi de khi nguoi kia vua sua cung mot o', () => {
+  const guardedEdit = {
+    table: 'transactions',
+    action: 'update' as const,
+    values: { amount: 250_000 },
+    match: { id: 'tx-1' },
+    guard: { amount: 200_000 },
+  }
+
+  it('gan dieu kien "o nay van dang la gia tri cu" vao lenh gui di', async () => {
+    await sendOrQueue(guardedEdit)
+
+    expect(sent).toHaveLength(1)
+    expect(sent[0].guard).toEqual({ amount: 200_000 })
+  })
+
+  it('bao xung dot khi khong con dong nao khop', async () => {
+    updateMatches = 0
+
+    await expect(sendOrQueue(guardedEdit)).rejects.toBeInstanceOf(ConflictError)
+  })
+
+  it('bao xung dot ca khi khong dat guard - ban ghi da bi xoa mat', async () => {
+    updateMatches = 0
+
+    // Khong co guard nhung van 0 dong => nguoi kia da xoa. Truoc day PostgREST
+    // coi day la thanh cong nen app bao "Da luu" trong khi chang ghi duoc gi.
+    await expect(
+      sendOrQueue({ table: 'transactions', action: 'update', values: { note: 'x' }, match: { id: 'tx-1' } }),
+    ).rejects.toBeInstanceOf(ConflictError)
+  })
+
+  it('dung .is() cho o rong thay vi so sanh bang null', async () => {
+    await sendOrQueue({ ...guardedEdit, guard: { category_id: null } })
+
+    expect(sent[0].guard).toEqual({ category_id: null })
+  })
+
+  it('KHONG mang guard xuong hang doi khi mat mang', async () => {
+    setOnline(false)
+    await sendOrQueue(guardedEdit)
+
+    // Thao tac offline co the nam cho ca ngay; giu guard thi den luc day len
+    // gia tri cu chac chan da khac va lenh nao cung bi tu choi.
+    const queued = JSON.parse(localStorage.getItem('moneysaver.outbox.v1')!)
+    expect(queued[0].guard).toBeUndefined()
+    expect(queued[0].values).toEqual({ amount: 250_000 })
+
+    setOnline(true)
+    await flushOutbox()
+    expect(sent[0].guard).toEqual({})
   })
 })
 

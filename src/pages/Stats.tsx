@@ -209,7 +209,7 @@ export default function Stats() {
             { label: 'Thu', value: stats.income, tone: 'text-emerald-600 dark:text-emerald-400' },
             { label: 'Chi', value: stats.expense, tone: 'text-red-500' },
             {
-              label: range === 'month' ? 'Còn lại' : 'Tích luỹ',
+              label: range === 'month' ? 'Chênh lệch' : 'Tích luỹ',
               value: stats.net,
               tone: stats.net >= 0 ? 'text-ink-950 dark:text-white' : 'text-red-500',
             },
@@ -303,7 +303,7 @@ export default function Stats() {
                         <th className="py-2 font-semibold">Tháng</th>
                         <th className="py-2 text-right font-semibold">Thu</th>
                         <th className="py-2 text-right font-semibold">Chi</th>
-                        <th className="py-2 text-right font-semibold">Còn lại</th>
+                        <th className="py-2 text-right font-semibold">Chênh lệch</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-ink-200/60 tabular-nums dark:divide-white/5">

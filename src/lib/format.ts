@@ -22,7 +22,9 @@ export function formatNumber(value: number): string {
 export function formatMoney(value: number, opts?: { sign?: boolean }): string {
   const rounded = Math.round(value)
   const body = `${vnd.format(Math.abs(rounded))} ₫`
-  if (rounded < 0) return `-${body}`
+  // Dung dau tru thuc su (U+2212) chu khong phai gach noi, cho khop voi dau
+  // cong va nhin can doi hon canh chu so.
+  if (rounded < 0) return `−${body}`
   if (opts?.sign && rounded > 0) return `+${body}`
   return body
 }
@@ -32,7 +34,7 @@ export function formatMoney(value: number, opts?: { sign?: boolean }): string {
  */
 export function formatCompact(value: number): string {
   const n = Math.abs(Math.round(value))
-  const sign = value < 0 ? '-' : ''
+  const sign = value < 0 ? '−' : ''
   const trim = (x: number, d = 1) =>
     x.toFixed(d).replace(/\.0+$/, '').replace('.', ',')
   if (n >= 1_000_000_000) return `${sign}${trim(n / 1_000_000_000, 2)} tỷ`

@@ -165,7 +165,7 @@ export default function Home() {
           </div>
 
           <p className="mt-3 text-[13px] font-medium text-white/70">
-            Còn lại trong tháng:{' '}
+            Thu − chi tháng này:{' '}
             <b className={stats.net >= 0 ? 'text-emerald-300' : 'text-red-300'}>
               {formatMoney(stats.net, { sign: true })}
             </b>
@@ -214,15 +214,23 @@ export default function Home() {
               )}
             </dl>
 
+            {/*
+              Day la MUC THAY DOI trong thang, khong phai "con lai".
+              So con lai that su la so du o dau the. Goi nham thanh "con lai"
+              khien thang nao chi nhieu hon thu se doc ra thanh dang am tien,
+              trong khi vi van con so du.
+            */}
             <div className="mt-2.5 flex items-baseline justify-between gap-3 border-t border-ink-200/60 pt-2.5 dark:border-white/10">
-              <span className="text-[14px] font-semibold text-ink-500">Còn lại trong tháng</span>
+              <span className="text-[14px] font-semibold text-ink-500">
+                {myFlow.net >= 0 ? 'Tháng này tăng' : 'Tháng này giảm'}
+              </span>
               <span
                 className={clsx(
                   'font-bold tabular-nums',
                   myFlow.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500',
                 )}
               >
-                {formatMoney(myFlow.net, { sign: true })}
+                {formatMoney(Math.abs(myFlow.net))}
               </span>
             </div>
           </section>

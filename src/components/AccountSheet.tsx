@@ -16,10 +16,14 @@ export const ACCOUNT_KINDS: { value: AccountKind; label: string; icon: string }[
 ]
 
 /**
- * Man hinh them/sua vi. Dung o hai noi:
+ * Man hinh them/sua mot TAI KHOAN (tien mat, the, vi dien tu...).
+ * Tai khoan luon nam trong mot VI - vi cua mot thanh vien, hoac vi chung
+ * cua nha; xem src/lib/wallets.ts.
+ *
+ * Dung o hai noi:
  *  - Trang "Ví & tài khoản" (sua, an, xoa)
- *  - Ngay trong form them giao dich, khi can tao vi moi giua chung
- *    (luc do truyen onCreated de chon luon vi vua tao).
+ *  - Ngay trong form them giao dich, khi can tao tai khoan moi giua chung
+ *    (luc do truyen onCreated de chon luon tai khoan vua tao).
  */
 export function AccountSheet({
   open,
@@ -30,7 +34,7 @@ export function AccountSheet({
   open: boolean
   account: Account | null
   onClose: () => void
-  /** Goi sau khi tao MOI thanh cong, kem id cua vi vua tao. */
+  /** Goi sau khi tao MOI thanh cong, kem id cua tai khoan vua tao. */
   onCreated?: (id: string) => void
 }) {
   const { household, members, balanceOf } = useApp()
@@ -71,7 +75,7 @@ export function AccountSheet({
         owner_id: ownerId || null,
         archived,
       })
-      toast(account ? 'Đã cập nhật ví' : 'Đã tạo ví mới')
+      toast(account ? 'Đã cập nhật tài khoản' : 'Đã tạo tài khoản mới')
       if (!account) onCreated?.(id)
       onClose()
     } catch (e) {
@@ -82,15 +86,15 @@ export function AccountSheet({
   const remove = async () => {
     if (!account) return
     const ok = await confirm({
-      title: `Xoá ví “${account.name}”?`,
+      title: `Xoá tài khoản “${account.name}”?`,
       message:
-        'Các giao dịch đã ghi vẫn được giữ lại nhưng sẽ không còn gắn với ví nào. Nếu chỉ muốn ngừng dùng, hãy chọn “Ẩn ví” thay vì xoá.',
-      confirmLabel: 'Xoá ví',
+        'Các giao dịch đã ghi vẫn được giữ lại nhưng sẽ không còn gắn với tài khoản nào. Nếu chỉ muốn ngừng dùng, hãy chọn “Ẩn tài khoản” thay vì xoá.',
+      confirmLabel: 'Xoá tài khoản',
       danger: true,
     })
     if (!ok) return
     await del.mutateAsync(account.id)
-    toast('Đã xoá ví')
+    toast('Đã xoá tài khoản')
     onClose()
   }
 
@@ -98,7 +102,7 @@ export function AccountSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={account ? 'Sửa ví' : 'Ví mới'}
+      title={account ? 'Sửa tài khoản' : 'Tài khoản mới'}
       footer={
         <div className="flex gap-3">
           {account && (
@@ -117,17 +121,17 @@ export function AccountSheet({
         </div>
       }
     >
-      <Field label="Tên ví">
+      <Field label="Tên tài khoản">
         <input
           className="field"
-          placeholder="VD: Vietcombank của chồng"
+          placeholder="VD: Vietcombank"
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus={!account}
         />
       </Field>
 
-      <Field label="Loại ví">
+      <Field label="Loại">
         <div className="grid grid-cols-4 gap-2">
           {ACCOUNT_KINDS.map((k) => (
             <button
@@ -153,24 +157,25 @@ export function AccountSheet({
         hint={
           account
             ? `Số dư hiện tại: ${formatMoney(balanceOf(account.id))} (đã tính các giao dịch)`
-            : 'Số tiền đang có trong ví này trước khi bắt đầu ghi chép'
+            : 'Số tiền đang có trong tài khoản này trước khi bắt đầu ghi chép'
         }
       >
         <MoneyInput value={opening} onChange={setOpening} />
       </Field>
 
-      {members.length > 1 && (
-        <Field label="Thuộc về">
-          <select className="field" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
-            <option value="">Ví chung của gia đình</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                Ví riêng của {m.avatar_emoji} {m.display_name}
-              </option>
-            ))}
-          </select>
-        </Field>
-      )}
+      <Field
+        label="Nằm trong ví"
+        hint="Ví là tầng gom bên trên — mỗi ví có thể chứa nhiều tài khoản (tiền mặt, thẻ, ví điện tử…)"
+      >
+        <select className="field" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
+          <option value="">🏠 Ví chung của gia đình</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.avatar_emoji} Ví của {m.display_name}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       {account && (
         <label className="flex items-center gap-3 rounded-2xl bg-ink-100 px-4 py-3 dark:bg-white/5">
@@ -180,7 +185,7 @@ export function AccountSheet({
             onChange={(e) => setArchived(e.target.checked)}
             className="h-5 w-5 rounded accent-brand-600"
           />
-          <span className="text-[15px] font-semibold">Ẩn ví này (không dùng nữa)</span>
+          <span className="text-[15px] font-semibold">Ẩn tài khoản này (không dùng nữa)</span>
         </label>
       )}
     </Sheet>

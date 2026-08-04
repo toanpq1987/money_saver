@@ -62,15 +62,16 @@ export default function Home() {
     const own = live.filter((a) => a.owner_id === member)
     return {
       balance: own.reduce((s, a) => s + balanceOf(a.id), 0),
-      balanceLabel: `Ví riêng của ${memberById(member)?.display_name ?? 'bạn'}`,
+      balanceLabel: `Ví của ${memberById(member)?.display_name ?? 'bạn'}`,
     }
   }, [accounts, balanceOf, member, memberById])
 
-  // Vi cua chinh nguoi dang dang nhap (khong phai vi chung cua nha)
-  const myWallets = useMemo(
-    () => accounts.filter((a) => !a.archived && a.owner_id === profile?.id).map((a) => a.id),
+  // "Ví của tôi" = moi tai khoan minh dung ten (tien mat, the, vi dien tu...)
+  const myAccounts = useMemo(
+    () => accounts.filter((a) => !a.archived && a.owner_id === profile?.id),
     [accounts, profile?.id],
   )
+  const myWallets = useMemo(() => myAccounts.map((a) => a.id), [myAccounts])
   const myFlow = useWalletFlow(myWallets)
 
   const budgetTotal = (budgetsQ.data ?? []).reduce((s, b) => s + b.amount, 0)
@@ -171,18 +172,32 @@ export default function Home() {
           </p>
         </section>
 
-        {/* Tien rieng cua chinh minh - tinh theo VI, khong theo nguoi chi */}
+        {/* Vi cua chinh minh - gom moi tai khoan dung ten minh, tinh theo VI chu khong theo nguoi chi */}
         {myWallets.length > 0 ? (
           <section className="card p-4">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="flex items-center gap-2 font-bold">
                 <Wallet size={18} className="text-ink-400" />
-                Ví riêng của tôi
+                Ví của tôi
               </h2>
               <span className="text-xl font-extrabold tabular-nums">
                 {hideBalance ? '••••' : formatMoney(myFlow.balance)}
               </span>
             </div>
+
+            {/* Cac tai khoan nam trong vi nay */}
+            <ul className="mt-2.5 space-y-1 text-[13px]">
+              {myAccounts.map((a) => (
+                <li key={a.id} className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate text-ink-500">
+                    {a.icon} {a.name}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-ink-500">
+                    {hideBalance ? '••••' : formatMoney(balanceOf(a.id))}
+                  </span>
+                </li>
+              ))}
+            </ul>
 
             <dl className="mt-3 space-y-1.5 text-[14px]">
               {myFlow.income > 0 && (
@@ -217,9 +232,9 @@ export default function Home() {
               <Wallet size={20} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block font-bold">Tạo ví riêng của bạn</span>
+              <span className="block font-bold">Tạo ví của riêng bạn</span>
               <span className="block text-[13px] text-ink-500">
-                Để theo dõi tiền của riêng mình tách khỏi tiền chung của nhà
+                Thêm tài khoản đứng tên bạn để tách tiền riêng khỏi tiền chung của nhà
               </span>
             </span>
             <ChevronRight size={18} className="shrink-0 text-ink-400" />

@@ -5,6 +5,7 @@ import { useApp, useMe } from '@/hooks/useApp'
 import { errorMessage } from '@/lib/errors'
 import { dateKey, dayjs } from '@/lib/format'
 import { useDeleteTransaction, useSaveTransaction } from '@/lib/queries'
+import { groupAccountsByOwner } from '@/lib/wallets'
 import type { Transaction, TxType } from '@/lib/types'
 import { AccountSheet } from './AccountSheet'
 import { CategorySheet } from './CategorySheet'
@@ -43,6 +44,12 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
   const [addingCategory, setAddingCategory] = useState(false)
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.archived), [accounts])
+
+  // Tai khoan duoc gom theo vi (Ví của tôi / Ví của vợ / Ví chung) cho de chon
+  const walletGroups = useMemo(
+    () => groupAccountsByOwner(accounts, members, me.id),
+    [accounts, members, me.id],
+  )
 
   const visibleCategories = useMemo(
     () =>
@@ -227,14 +234,17 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
             else setAccountId(e.target.value || null)
           }}
         >
-          <option value="">— Chọn ví —</option>
-          {activeAccounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.icon} {a.name}
-              {a.owner_id ? ` (riêng)` : ''}
-            </option>
+          <option value="">— Chọn tài khoản —</option>
+          {walletGroups.map((g) => (
+            <optgroup key={g.key} label={`${g.emoji} ${g.name}`}>
+              {g.accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.icon} {a.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
-          <option value={NEW_ACCOUNT}>➕ Thêm ví mới…</option>
+          <option value={NEW_ACCOUNT}>➕ Thêm tài khoản mới…</option>
         </select>
       </Field>
 
@@ -250,15 +260,21 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
                 else setToAccountId(e.target.value || null)
               }}
             >
-              <option value="">— Chọn ví —</option>
-              {activeAccounts
-                .filter((a) => a.id !== accountId)
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.icon} {a.name}
-                  </option>
-                ))}
-              <option value={NEW_ACCOUNT}>➕ Thêm ví mới…</option>
+              <option value="">— Chọn tài khoản —</option>
+              {walletGroups.map((g) => {
+                const options = g.accounts.filter((a) => a.id !== accountId)
+                if (options.length === 0) return null
+                return (
+                  <optgroup key={g.key} label={`${g.emoji} ${g.name}`}>
+                    {options.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.icon} {a.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+              })}
+              <option value={NEW_ACCOUNT}>➕ Thêm tài khoản mới…</option>
             </select>
           </div>
         </Field>

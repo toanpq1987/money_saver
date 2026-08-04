@@ -19,11 +19,12 @@ export interface CategorySlice {
  * Du lieu cua thang dang xem, da ap dung bo loc thanh vien.
  * Chuyen khoan giua 2 vi khong duoc tinh la thu hay chi.
  *
- * @param walletId Chi lay giao dich lien quan toi mot vi. Bo trong = moi vi.
+ * @param accountIds Chi lay giao dich lien quan toi cac tai khoan nay (mot
+ *   "ví" gom nhieu tai khoan). Bo trong = tinh het.
  *   Truyen tu ben ngoai (thay vi luu trong store dung chung) de bo loc o
  *   man hinh Thong ke khong am tham lam sai so lieu o Trang chu.
  */
-export function useMonthData(walletId?: string | null) {
+export function useMonthData(accountIds?: string[] | null) {
   const { month, member } = useUI()
   const { categoryById } = useApp()
 
@@ -33,14 +34,22 @@ export function useMonthData(walletId?: string | null) {
 
   const all = useMemo(() => query.data ?? [], [query.data])
 
+  // Mang doi tham chieu moi lan ve lai, dung chuoi khoa cho on dinh.
+  const walletKey = accountIds?.join(',') ?? ''
+
   const rows = useMemo(() => {
     let list = all
     if (member !== 'all') list = list.filter((t) => t.payer_id === member)
-    if (walletId) {
-      list = list.filter((t) => t.account_id === walletId || t.to_account_id === walletId)
+    if (walletKey) {
+      const mine = new Set(walletKey.split(','))
+      list = list.filter(
+        (t) =>
+          (t.account_id && mine.has(t.account_id)) ||
+          (t.to_account_id && mine.has(t.to_account_id)),
+      )
     }
     return list
-  }, [all, member, walletId])
+  }, [all, member, walletKey])
 
   const stats = useMemo(() => {
     let income = 0

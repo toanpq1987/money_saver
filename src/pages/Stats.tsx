@@ -19,13 +19,22 @@ import { useChartTokens } from '@/hooks/useChartTokens'
 import { useMonthData, useTrend } from '@/hooks/useMonthData'
 import { dayjs, formatCompact, formatMoney, pct } from '@/lib/format'
 import { useUI } from '@/lib/store'
+import { groupAccountsByOwner } from '@/lib/wallets'
 
 export default function Stats() {
-  const { members, memberById, accounts } = useApp()
+  const { members, memberById, accounts, profile } = useApp()
   const { month, member } = useUI()
   /** Bo loc vi chi song trong man hinh nay, khong anh huong Trang chu. */
   const [wallet, setWallet] = useState<string | null>(null)
-  const { rows, all, stats, byCategory, sharedSplit, isLoading } = useMonthData(wallet)
+  const walletGroups = useMemo(
+    () => groupAccountsByOwner(accounts, members, profile?.id),
+    [accounts, members, profile?.id],
+  )
+  const walletAccountIds = useMemo(
+    () => walletGroups.find((g) => g.key === wallet)?.accountIds ?? null,
+    [walletGroups, wallet],
+  )
+  const { rows, all, stats, byCategory, sharedSplit, isLoading } = useMonthData(walletAccountIds)
   const trend = useTrend(6)
   const t = useChartTokens()
   const [showTable, setShowTable] = useState(false)
@@ -103,8 +112,6 @@ export default function Stats() {
     return list.filter((r) => r.amount > 0)
   }, [sharedSplit, members, member, memberById, t])
 
-  const liveAccounts = useMemo(() => accounts.filter((a) => !a.archived), [accounts])
-
   const maxDaily = Math.max(...daily.map((d) => d.expense), 1)
   const avgDaily = stats.expense / dayjs(month).daysInMonth()
   const topCategory = byCategory[0]
@@ -125,7 +132,7 @@ export default function Stats() {
       <PageHeader title="Thống kê" showMonth />
       <MemberTabs />
 
-      {liveAccounts.length > 1 && (
+      {walletGroups.length > 1 && (
         <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-3">
           <button
             onClick={() => setWallet(null)}
@@ -138,19 +145,19 @@ export default function Stats() {
           >
             Mọi ví
           </button>
-          {liveAccounts.map((a) => (
+          {walletGroups.map((g) => (
             <button
-              key={a.id}
-              onClick={() => setWallet(a.id)}
+              key={g.key}
+              onClick={() => setWallet(g.key)}
               className={clsx(
                 'chip',
-                wallet === a.id
+                wallet === g.key
                   ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-950'
                   : 'bg-ink-200/60 text-ink-600 dark:bg-white/5 dark:text-ink-300',
               )}
             >
-              <span>{a.icon}</span>
-              {a.name}
+              <span>{g.emoji}</span>
+              {g.name}
             </button>
           ))}
         </div>

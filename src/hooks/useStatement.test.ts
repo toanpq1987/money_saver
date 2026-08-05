@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { buildStatement, effectOn, sortForRunningBalance } from './useStatement'
+import {
+  buildStatement,
+  cycleBounds,
+  effectOn,
+  monthBounds,
+  sortForRunningBalance,
+} from './useStatement'
 import type { Account, Transaction } from '@/lib/types'
 
 /**
@@ -72,6 +78,7 @@ describe('mot giao dich lam so du doi bao nhieu', () => {
 
 describe('sao ke mot thang', () => {
   const monthStart = '2026-08-01'
+  const monthEnd = '2026-08-31'
 
   it('so du dau ky gom so du ban dau va moi giao dich truoc thang', () => {
     const history = sortForRunningBalance([
@@ -79,7 +86,7 @@ describe('sao ke mot thang', () => {
       tx({ type: 'expense', amount: 1_000_000, occurred_at: '2026-07-20' }),
     ])
 
-    const s = buildStatement(account(VI, 2_000_000), history, monthStart)
+    const s = buildStatement(account(VI, 2_000_000), history, monthStart, monthEnd)
 
     expect(s.balanceStart).toBe(6_000_000) // 2tr + 5tr - 1tr
     expect(s.rows).toHaveLength(0) // giao dich thang truoc khong duoc liet ke
@@ -94,7 +101,7 @@ describe('sao ke mot thang', () => {
       tx({ type: 'income', amount: 500_000, occurred_at: '2026-08-20' }),
     ])
 
-    const s = buildStatement(account(VI), history, monthStart)
+    const s = buildStatement(account(VI), history, monthStart, monthEnd)
 
     expect(s.balanceStart).toBe(1_000_000)
     expect(s.inflow).toBe(500_000)
@@ -113,7 +120,7 @@ describe('sao ke mot thang', () => {
       tx({ type: 'income', amount: 400_000, occurred_at: '2026-08-15' }),
     ])
 
-    const s = buildStatement(account(VI, 500_000), history, monthStart)
+    const s = buildStatement(account(VI, 500_000), history, monthStart, monthEnd)
 
     expect(s.balanceStart + s.inflow - s.outflow).toBe(s.balanceEnd)
   })
@@ -129,8 +136,8 @@ describe('sao ke mot thang', () => {
       }),
     ])
 
-    const gui = buildStatement(account(VI, 75_000_000), history, monthStart)
-    const nhan = buildStatement(account(THE, 0), history, monthStart)
+    const gui = buildStatement(account(VI, 75_000_000), history, monthStart, monthEnd)
+    const nhan = buildStatement(account(THE, 0), history, monthStart, monthEnd)
 
     expect(gui.outflow).toBe(70_000_000)
     expect(gui.inflow).toBe(0)
@@ -146,7 +153,7 @@ describe('sao ke mot thang', () => {
       tx({ type: 'expense', amount: 1_435_500, occurred_at: '2026-08-08', account_id: THE }),
     ])
 
-    const s = buildStatement(account(THE, 0), history, monthStart)
+    const s = buildStatement(account(THE, 0), history, monthStart, monthEnd)
 
     expect(s.balanceEnd).toBe(-1_435_500)
     expect(s.rows[0].balanceAfter).toBe(-1_435_500)
@@ -157,7 +164,7 @@ describe('sao ke mot thang', () => {
       tx({ type: 'income', amount: 3_000_000, occurred_at: '2026-05-05' }),
     ])
 
-    const s = buildStatement(account(VI), history, monthStart)
+    const s = buildStatement(account(VI), history, monthStart, monthEnd)
 
     expect(s.rows).toHaveLength(0)
     expect(s.inflow).toBe(0)
@@ -173,10 +180,78 @@ describe('sao ke mot thang', () => {
       tx({ type: 'expense', amount: 300, occurred_at: '2026-08-09' }),
     ])
 
-    const s = buildStatement(account(VI, 1000), history, monthStart)
+    const s = buildStatement(account(VI, 1000), history, monthStart, monthEnd)
 
     // moi nhat truoc: 300 (con 400), 200 (con 700), 100 (con 900)
     expect(s.rows.map((r) => r.balanceAfter)).toEqual([400, 700, 900])
     expect(s.balanceEnd).toBe(400)
+  })
+
+  it('giao dich sau ngay cuoi ky khong duoc dung toi so du cuoi ky', () => {
+    const history = sortForRunningBalance([
+      tx({ type: 'expense', amount: 500, occurred_at: '2026-08-10' }),
+      tx({ type: 'expense', amount: 9_000_000, occurred_at: '2026-09-01' }),
+    ])
+
+    const s = buildStatement(account(VI, 1_000_000), history, monthStart, monthEnd)
+
+    expect(s.rows).toHaveLength(1)
+    expect(s.balanceEnd).toBe(999_500)
+  })
+})
+
+describe('sao ke mot khoang ngay bat ky', () => {
+  it('ky cua the tin dung: 24/07 den 23/08', () => {
+    const history = sortForRunningBalance([
+      // Truoc ky - chi cong vao so du dau ky
+      tx({ type: 'expense', amount: 1_000_000, occurred_at: '2026-07-23' }),
+      // Trong ky, dung hai dau mut
+      tx({ type: 'expense', amount: 300_000, occurred_at: '2026-07-24' }),
+      tx({ type: 'expense', amount: 200_000, occurred_at: '2026-08-23' }),
+      // Sang ky sau
+      tx({ type: 'expense', amount: 700_000, occurred_at: '2026-08-24' }),
+    ])
+
+    const s = buildStatement(account(VI, 5_000_000), history, '2026-07-24', '2026-08-23')
+
+    expect(s.balanceStart).toBe(4_000_000)
+    expect(s.rows).toHaveLength(2)
+    expect(s.outflow).toBe(500_000)
+    expect(s.balanceEnd).toBe(3_500_000)
+  })
+
+  it('khoang chi mot ngay van tinh dung', () => {
+    const history = sortForRunningBalance([
+      tx({ type: 'income', amount: 100, occurred_at: '2026-08-04' }),
+      tx({ type: 'income', amount: 200, occurred_at: '2026-08-05' }),
+      tx({ type: 'income', amount: 400, occurred_at: '2026-08-06' }),
+    ])
+
+    const s = buildStatement(account(VI), history, '2026-08-05', '2026-08-05')
+
+    expect(s.balanceStart).toBe(100)
+    expect(s.rows).toHaveLength(1)
+    expect(s.balanceEnd).toBe(300)
+  })
+})
+
+describe('tinh hai dau mut cua ky', () => {
+  it('ky the bat dau ngay 24 thi chay tu 24 thang truoc den 23 thang nay', () => {
+    expect(cycleBounds('2026-08-01', 24)).toEqual({ from: '2026-07-24', to: '2026-08-23' })
+  })
+
+  it('vat qua nam moi van dung', () => {
+    expect(cycleBounds('2026-01-01', 24)).toEqual({ from: '2025-12-24', to: '2026-01-23' })
+  })
+
+  it('ngay 28 la toi da nen thang hai cung co', () => {
+    expect(cycleBounds('2026-03-01', 28)).toEqual({ from: '2026-02-28', to: '2026-03-27' })
+    // Go 31 thi keo ve 28 chu khong nhay sang thang khac
+    expect(cycleBounds('2026-03-01', 31)).toEqual({ from: '2026-02-28', to: '2026-03-27' })
+  })
+
+  it('theo thang thi tron mung 1 den het thang, ke ca thang 30 ngay', () => {
+    expect(monthBounds('2026-08-01')).toEqual({ from: '2026-08-01', to: '2026-08-31' })
+    expect(monthBounds('2026-04-01')).toEqual({ from: '2026-04-01', to: '2026-04-30' })
   })
 })

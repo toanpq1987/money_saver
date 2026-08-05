@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { monthKey } from './format'
-import type { MemberFilter } from './types'
+import type { MemberFilter, StatementMode } from './types'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -14,6 +14,20 @@ interface UIState {
   member: MemberFilter
   setMember: (m: MemberFilter) => void
 
+  /**
+   * Cach chia ky o man hinh Sao ke, va ngay chot cua the tin dung.
+   *
+   * Hai gia tri nay ngoai le duoc GIU LAI giua cac phien, khac voi cac bo loc
+   * khac (xem CLAUDE.md). Ly do: chu ky sao ke la mot dac diem co dinh cua
+   * ngan hang chu khong phai mot lan loc nhat thoi - bat nguoi dung go lai
+   * "ngay 24" moi thang la vo ly. An toan vi khong man hinh nao khac doc hai
+   * gia tri nay, va man Sao ke luon in ro khoang ngay dang xem len dau trang.
+   */
+  statementMode: StatementMode
+  setStatementMode: (m: StatementMode) => void
+  statementCycleDay: number
+  setStatementCycleDay: (d: number) => void
+
   theme: Theme
   setTheme: (t: Theme) => void
 }
@@ -25,13 +39,23 @@ export const useUI = create<UIState>()(
       setMonth: (month) => set({ month }),
       member: 'all',
       setMember: (member) => set({ member }),
+      statementMode: 'month',
+      setStatementMode: (statementMode) => set({ statementMode }),
+      statementCycleDay: 24,
+      setStatementCycleDay: (statementCycleDay) => set({ statementCycleDay }),
       theme: 'system',
       setTheme: (theme) => set({ theme }),
     }),
     {
       name: 'moneysaver.ui',
       // Thang dang xem khong nen dinh giua cac phien - luon mo o thang hien tai.
-      partialize: (s) => ({ member: s.member, theme: s.theme }) as Partial<UIState>,
+      partialize: (s) =>
+        ({
+          member: s.member,
+          theme: s.theme,
+          statementMode: s.statementMode,
+          statementCycleDay: s.statementCycleDay,
+        }) as Partial<UIState>,
     },
   ),
 )

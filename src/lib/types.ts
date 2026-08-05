@@ -174,3 +174,11 @@ export interface ActivityLog {
 
 /** Bo loc "Tat ca / Chong / Vo" o dau man hinh. */
 export type MemberFilter = string | 'all'
+
+/**
+ * Cach chia ky o man hinh Sao ke.
+ *  - month  : tron mot thang duong lich (mung 1 den het thang)
+ *  - cycle  : ky cua the tin dung, vd 24 thang truoc -> 23 thang nay
+ *  - custom : tu chon hai dau ngay
+ */
+export type StatementMode = 'month' | 'cycle' | 'custom'

@@ -2,18 +2,35 @@ import clsx from 'clsx'
 import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { SubHeader } from '@/components/AppShell'
-import { EmptyState, Spinner } from '@/components/ui'
+import { EmptyState, Segmented, Spinner } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
-import { useAccountStatements, type AccountStatement } from '@/hooks/useStatement'
-import { dayjs, formatMoney, formatMonthLabel, monthKey } from '@/lib/format'
+import {
+  cycleBounds,
+  monthBounds,
+  useAccountStatements,
+  type AccountStatement,
+} from '@/hooks/useStatement'
+import { dateKey, dayjs, formatMoney, monthKey } from '@/lib/format'
 import { groupAccountsByOwner } from '@/lib/wallets'
 import { useUI } from '@/lib/store'
 
 export default function Statement() {
   const { accounts, members, profile, categoryById } = useApp()
-  const { month, setMonth } = useUI()
-  const { statements, isLoading } = useAccountStatements(month)
+  const { month, setMonth, statementMode: mode, setStatementMode: setMode } = useUI()
+  const { statementCycleDay: cycleDay, setStatementCycleDay: setCycleDay } = useUI()
   const [openId, setOpenId] = useState<string | null>(null)
+
+  // Khoang tu chon giu o day chu khong vao store: no la hai moc ngay tuyet
+  // doi, thang sau quay lai thi da cu meo, giu lai chi gay nham.
+  const [custom, setCustom] = useState(() => monthBounds(monthKey(new Date())))
+
+  const { from, to } = useMemo(() => {
+    if (mode === 'custom') return custom
+    if (mode === 'cycle') return cycleBounds(month, cycleDay)
+    return monthBounds(month)
+  }, [mode, month, cycleDay, custom])
+
+  const { statements, isLoading } = useAccountStatements(from, to)
 
   const isCurrentMonth = month === monthKey(new Date())
 
@@ -28,24 +45,114 @@ export default function Statement() {
 
   return (
     <div className="page-pad">
-      <SubHeader title="Sao kê tài khoản" subtitle={formatMonthLabel(month)} />
+      <SubHeader
+        title="Sao kê tài khoản"
+        subtitle={`${dayjs(from).format('DD/MM/YYYY')} → ${dayjs(to).format('DD/MM/YYYY')}`}
+      />
 
       <div className="space-y-4 px-4">
-        <div className="flex gap-2">
-          <button
-            className="btn-ghost flex-1 py-2 text-sm"
-            onClick={() => setMonth(monthKey(dayjs(month).subtract(1, 'month')))}
-          >
-            ← Tháng trước
-          </button>
-          <button
-            className="btn-ghost flex-1 py-2 text-sm"
-            disabled={isCurrentMonth}
-            onClick={() => setMonth(monthKey(dayjs(month).add(1, 'month')))}
-          >
-            Tháng sau →
-          </button>
-        </div>
+        <section className="card space-y-3 p-3">
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'month', label: 'Theo tháng' },
+              { value: 'cycle', label: 'Kỳ thẻ' },
+              { value: 'custom', label: 'Tuỳ chọn' },
+            ]}
+          />
+
+          {mode !== 'custom' && (
+            <div className="flex gap-2">
+              <button
+                className="btn-ghost flex-1 py-2 text-sm"
+                onClick={() => setMonth(monthKey(dayjs(month).subtract(1, 'month')))}
+              >
+                ← Kỳ trước
+              </button>
+              <button
+                className="btn-ghost flex-1 py-2 text-sm"
+                disabled={isCurrentMonth}
+                onClick={() => setMonth(monthKey(dayjs(month).add(1, 'month')))}
+              >
+                Kỳ sau →
+              </button>
+            </div>
+          )}
+
+          {mode === 'cycle' && (
+            <div>
+              <label className="flex items-center gap-3 text-sm">
+                <span className="shrink-0 text-ink-500">Kỳ bắt đầu ngày</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={2}
+                  max={28}
+                  className="field w-20 py-2 text-center"
+                  value={cycleDay}
+                  onChange={(e) => setCycleDay(Number(e.target.value) || 24)}
+                />
+                <span className="text-ink-500">hằng tháng</span>
+              </label>
+              <p className="mt-2 text-[12px] leading-relaxed text-ink-500">
+                Xem mặt sau thẻ hoặc sao kê ngân hàng gửi về để biết ngày chốt. Tối đa 28 để
+                tháng nào cũng có ngày đó.
+              </p>
+            </div>
+          )}
+
+          {mode === 'custom' && (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="label">Từ ngày</span>
+                <input
+                  type="date"
+                  className="field py-2"
+                  value={custom.from}
+                  max={custom.to}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    if (!next) return
+                    // Keo ngay dau vuot qua ngay cuoi thi day ngay cuoi theo,
+                    // thay vi de nguoi dung nhin mot khoang rong vo nghia.
+                    setCustom((c) => ({ from: next, to: next > c.to ? next : c.to }))
+                  }}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Đến ngày</span>
+                <input
+                  type="date"
+                  className="field py-2"
+                  value={custom.to}
+                  min={custom.from}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    if (!next) return
+                    setCustom((c) => ({ from: next < c.from ? next : c.from, to: next }))
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
+          {mode === 'custom' && (
+            <div className="flex flex-wrap gap-2">
+              <QuickRange label="Tháng này" onPick={() => setCustom(monthBounds(monthKey(new Date())))} />
+              <QuickRange
+                label="Tháng trước"
+                onPick={() => setCustom(monthBounds(monthKey(dayjs().subtract(1, 'month'))))}
+              />
+              <QuickRange
+                label="30 ngày qua"
+                onPick={() =>
+                  setCustom({ from: dateKey(dayjs().subtract(29, 'day')), to: dateKey(dayjs()) })
+                }
+              />
+            </div>
+          )}
+        </section>
 
         <p className="px-1 text-[13px] leading-relaxed text-ink-500">
           Số dư đầu kỳ + tiền vào − tiền ra = số dư cuối kỳ. Bấm vào một tài khoản để xem từng
@@ -87,6 +194,18 @@ export default function Statement() {
         )}
       </div>
     </div>
+  )
+}
+
+function QuickRange({ label, onPick }: { label: string; onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="chip bg-ink-100 text-ink-600 dark:bg-white/5 dark:text-ink-300"
+    >
+      {label}
+    </button>
   )
 }
 

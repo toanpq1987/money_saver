@@ -83,7 +83,11 @@ mình luôn xếp đầu danh sách.
 **Bộ lọc cục bộ, không nhét vào store dùng chung.** Bộ lọc ví và khoảng thời gian
 ở màn Thống kê là `useState` của riêng màn đó. Nếu để trong store, người dùng lọc
 ở Thống kê rồi quên, sang Trang chủ thấy số sai mà không hiểu vì sao. Riêng
-`month` và `member` thì dùng chung có chủ đích.
+`month` và `member` thì dùng chung có chủ đích. **Ngoại lệ:** `statementMode` và
+`statementCycleDay` ở màn Sao kê có nằm trong store *và* được lưu lại giữa các
+phiên — chu kỳ sao kê là đặc điểm cố định của ngân hàng, không phải một lần lọc
+nhất thời, bắt gõ lại "ngày 24" mỗi tháng là vô lý. An toàn vì không màn hình nào
+khác đọc hai giá trị đó, và màn Sao kê luôn in rõ khoảng ngày lên đầu trang.
 
 **Offline dùng outbox tự viết**, không dùng cơ chế pause mutation của React Query
 — cần kiểm soát thứ tự và tự lưu xuống localStorage. Vì vậy mutation phải đặt
@@ -210,7 +214,7 @@ qua bước này là người dùng hết cách phân biệt.
 
 ## Test
 
-`npm test` — 49 test, chạy bằng Vitest (môi trường `node`, có
+`npm test` — 56 test, chạy bằng Vitest (môi trường `node`, có
 `src/test/setup.ts` giả lập `localStorage` và `navigator.onLine`).
 
 - `src/lib/outbox.test.ts` — hàng đợi offline: thứ tự, mạng chập chờn, lỗi máy
@@ -220,7 +224,8 @@ qua bước này là người dùng hết cách phân biệt.
   null vs undefined, ô bị xoá trắng, `false` không phải là "trống"
 - `src/lib/activity.test.ts` — nhật ký đọc ra có phân biệt được hai khoản giống
   hệt nhau không: mã ngắn, ngày giao dịch, uuid dịch sang tên người/ví
-- `src/hooks/useStatement.test.ts` — phép tính sao kê: số dư đầu kỳ, cộng dồn,
+- `src/hooks/useStatement.test.ts` — phép tính sao kê **theo khoảng ngày bất kỳ**
+  (kỳ thẻ 24/07→23/08, khoảng một ngày, hai đầu mút): số dư đầu kỳ, cộng dồn,
   `đầu kỳ + vào − ra = cuối kỳ`, chuyển khoản hai chiều, thẻ tín dụng âm
 
 Phần nào là **phép tính tiền** thì tách ra hàm thuần rồi viết test. Người dùng

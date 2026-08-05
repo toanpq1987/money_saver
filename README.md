@@ -71,7 +71,9 @@ chia đôi khi cân đối) hay **khoản riêng**.
 
 **Sao kê tài khoản** — *Thêm → Sao kê tài khoản*. Mỗi tài khoản một thẻ: số dư
 đầu kỳ, tiền vào, tiền ra, số dư cuối kỳ. Bấm vào để xem từng giao dịch kèm **số
-dư luỹ kế**, đối chiếu thẳng với sao kê ngân hàng gửi về.
+dư luỹ kế**, đối chiếu thẳng với sao kê ngân hàng gửi về. Chọn được **ba kiểu
+kỳ**: tròn tháng, **kỳ thẻ tín dụng** (VD ngày 24 tháng trước → 23 tháng này —
+đúng cách VPBank chốt sổ), hoặc tự chọn hai đầu ngày.
 
 **Ghi được khi mất mạng** — bấm Lưu là xong ngay, số liệu cập nhật liền kể cả số
 dư. Giao dịch chưa gửi có nhãn *"chờ gửi"*; có mạng lại tự gửi đúng thứ tự. Tắt

@@ -63,6 +63,60 @@ export interface CategorySlice {
   share: number
 }
 
+/** Chi can bay nhieu de ve mot dong trong "Co cau chi tieu". */
+type CategoryLook = (
+  id: string | null | undefined,
+) => { name: string; icon: string; color: string } | undefined
+
+/**
+ * Dieu kien de mot giao dich duoc tinh vao "Co cau chi tieu".
+ *
+ * Chi dinh nghia DUNG MOT LAN vi ca hai phia deu phai hoi cung mot cau: bang
+ * xep hang o tren va danh sach chi tiet hien ra khi bam vao mot dong. Neu hai
+ * ben lech nhau - vi du ben nay quen loai khoan thu dung chung category_id -
+ * thi tong o bang chi tiet se khac con so tren dong vua bam, va nguoi dung
+ * khong biet phai tin con so nao.
+ */
+function isCategorisedExpense(t: Transaction): t is Transaction & { category_id: string } {
+  return t.type === 'expense' && Boolean(t.category_id)
+}
+
+/** Cac giao dich lam nen mot dong trong "Co cau chi tieu". */
+export function categoryTransactions(rows: Transaction[], categoryId: string): Transaction[] {
+  return rows.filter((t) => isCategorisedExpense(t) && t.category_id === categoryId)
+}
+
+/** Gom chi tieu theo danh muc, sap xep tu nhieu toi it. */
+export function aggregateByCategory(
+  rows: Transaction[],
+  categoryById: CategoryLook,
+): CategorySlice[] {
+  const map = new Map<string, { total: number; count: number }>()
+  let total = 0
+  for (const t of rows) {
+    if (!isCategorisedExpense(t)) continue
+    const cur = map.get(t.category_id) ?? { total: 0, count: 0 }
+    cur.total += t.amount
+    cur.count += 1
+    map.set(t.category_id, cur)
+    total += t.amount
+  }
+  return [...map.entries()]
+    .map(([categoryId, v]) => {
+      const c = categoryById(categoryId)
+      return {
+        categoryId,
+        name: c?.name ?? 'Khác',
+        icon: c?.icon ?? '📦',
+        color: c?.color ?? '#8595ae',
+        total: v.total,
+        count: v.count,
+        share: total ? (v.total / total) * 100 : 0,
+      }
+    })
+    .sort((a, b) => b.total - a.total)
+}
+
 /**
  * Du lieu cua thang dang xem, da ap dung bo loc thanh vien.
  * Chuyen khoan giua 2 vi khong duoc tinh la thu hay chi.
@@ -109,32 +163,10 @@ export function useMonthData(accountIds?: string[] | null, range: RangeKey = 'mo
     return { income, expense, net: income - expense }
   }, [rows])
 
-  const byCategory = useMemo<CategorySlice[]>(() => {
-    const map = new Map<string, { total: number; count: number }>()
-    let total = 0
-    for (const t of rows) {
-      if (t.type !== 'expense' || !t.category_id) continue
-      const cur = map.get(t.category_id) ?? { total: 0, count: 0 }
-      cur.total += t.amount
-      cur.count += 1
-      map.set(t.category_id, cur)
-      total += t.amount
-    }
-    return [...map.entries()]
-      .map(([categoryId, v]) => {
-        const c = categoryById(categoryId)
-        return {
-          categoryId,
-          name: c?.name ?? 'Khác',
-          icon: c?.icon ?? '📦',
-          color: c?.color ?? '#8595ae',
-          total: v.total,
-          count: v.count,
-          share: total ? (v.total / total) * 100 : 0,
-        }
-      })
-      .sort((a, b) => b.total - a.total)
-  }, [rows, categoryById])
+  const byCategory = useMemo<CategorySlice[]>(
+    () => aggregateByCategory(rows, categoryById),
+    [rows, categoryById],
+  )
 
   /**
    * Tach chi tieu thanh khoan CHUNG cua gia dinh va khoan RIENG cua tung nguoi.

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Table2, TrendingUp } from 'lucide-react'
+import { ChevronRight, Table2, TrendingUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
   Bar,
@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts'
 import { MemberTabs, PageHeader } from '@/components/AppShell'
+import { CategoryDetailSheet } from '@/components/CategoryDetailSheet'
 import { EmptyState, ProgressBar, Spinner } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
 import { useChartTokens } from '@/hooks/useChartTokens'
@@ -21,6 +22,7 @@ import {
   rangeTrendMonths,
   useMonthData,
   useTrend,
+  type CategorySlice,
   type RangeKey,
 } from '@/hooks/useMonthData'
 import { dayjs, formatCompact, formatMoney, pct } from '@/lib/format'
@@ -41,13 +43,30 @@ export default function Stats() {
     () => walletGroups.find((g) => g.key === wallet)?.accountIds ?? null,
     [walletGroups, wallet],
   )
-  const { rows, all, stats, byCategory, sharedSplit, isLoading } = useMonthData(
+  const { rows, all, stats, byCategory, sharedSplit, isLoading, from, to } = useMonthData(
     walletAccountIds,
     range,
   )
   const trend = useTrend(rangeTrendMonths(range))
   const t = useChartTokens()
   const [showTable, setShowTable] = useState(false)
+  /** Danh muc dang mo bang chi tiet. */
+  const [detail, setDetail] = useState<CategorySlice | null>(null)
+
+  /**
+   * Cac bo loc dang bat, viet ra chu de nguoi dung khong thac mac vi sao bang
+   * chi tiet it giao dich hon ho tuong.
+   */
+  const scopeNote = useMemo(() => {
+    const parts: string[] = []
+    const w = walletGroups.find((g) => g.key === wallet)
+    if (w) parts.push(w.name)
+    if (member !== 'all') {
+      const who = memberById(member)?.display_name
+      if (who) parts.push(who)
+    }
+    return parts.length > 0 ? parts.join(' · ') : undefined
+  }, [walletGroups, wallet, member, memberById])
 
   // Chi tieu theo tung ngay trong thang
   const daily = useMemo(() => {
@@ -410,26 +429,41 @@ export default function Stats() {
                     {Math.round(topCategory.share)}% tổng chi
                   </p>
                 )}
+                <p className="mt-0.5 text-[12px] text-ink-400">
+                  Bấm vào một danh mục để xem từng khoản
+                </p>
                 <ul className="mt-4 space-y-3.5">
                   {byCategory.map((c) => (
                     <li key={c.categoryId}>
-                      <div className="mb-1.5 flex items-baseline gap-2">
-                        <span className="text-base leading-none">{c.icon}</span>
-                        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
-                          {c.name}
-                        </span>
-                        <span className="text-[13px] text-ink-500 tabular-nums">
-                          {Math.round(c.share)}%
-                        </span>
-                        <span className="text-[14px] font-bold tabular-nums">
-                          {formatCompact(c.total)}
-                        </span>
-                      </div>
-                      <ProgressBar
-                        value={c.share}
-                        color={t.magnitude(c.total / (byCategory[0]?.total || 1))}
-                      />
-                      <p className="mt-1 text-[12px] text-ink-500">{c.count} giao dịch</p>
+                      <button
+                        type="button"
+                        onClick={() => setDetail(c)}
+                        aria-label={`Xem chi tiết ${c.name}`}
+                        className="w-full rounded-xl text-left transition active:bg-ink-100 dark:active:bg-white/5"
+                      >
+                        <div className="mb-1.5 flex items-baseline gap-2">
+                          <span className="text-base leading-none">{c.icon}</span>
+                          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
+                            {c.name}
+                          </span>
+                          <span className="text-[13px] text-ink-500 tabular-nums">
+                            {Math.round(c.share)}%
+                          </span>
+                          <span className="text-[14px] font-bold tabular-nums">
+                            {formatCompact(c.total)}
+                          </span>
+                          <ChevronRight
+                            size={15}
+                            className="shrink-0 self-center text-ink-400"
+                            aria-hidden
+                          />
+                        </div>
+                        <ProgressBar
+                          value={c.share}
+                          color={t.magnitude(c.total / (byCategory[0]?.total || 1))}
+                        />
+                        <p className="mt-1 text-[12px] text-ink-500">{c.count} giao dịch</p>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -500,6 +534,17 @@ export default function Stats() {
           </>
         )}
       </div>
+
+      <CategoryDetailSheet
+        open={Boolean(detail)}
+        onClose={() => setDetail(null)}
+        slice={detail}
+        rows={rows}
+        range={range}
+        from={from}
+        to={to}
+        scopeNote={scopeNote}
+      />
     </div>
   )
 }

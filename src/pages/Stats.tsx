@@ -13,13 +13,22 @@ import {
   YAxis,
 } from 'recharts'
 import { MemberTabs, PageHeader } from '@/components/AppShell'
-import { CategoryDetailSheet } from '@/components/CategoryDetailSheet'
+import { BreakdownSheet } from '@/components/BreakdownSheet'
 import { EmptyState, ProgressBar, Spinner } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
 import { useChartTokens } from '@/hooks/useChartTokens'
 import {
+  aggregateByPayer,
+  aggregateDaily,
+  categoryTransactions,
+  dayTransactions,
+  flowTransactions,
+  monthTransactions,
+  payerTransactions,
+  privateTransactions,
   RANGE_LABELS,
   rangeTrendMonths,
+  sharedTransactions,
   useMonthData,
   useTrend,
   type CategorySlice,
@@ -28,6 +37,24 @@ import {
 import { dayjs, formatCompact, formatMoney, pct } from '@/lib/format'
 import { useUI } from '@/lib/store'
 import { groupAccountsByOwner } from '@/lib/wallets'
+
+/**
+ * Con so nao dang duoc mo ra xem chi tiet.
+ *
+ * Moi nhanh o day ung voi mot cach tinh khac nhau, va quan trong hon la ung voi
+ * mot MANG NGUON khac nhau: phan lon dua tren `rows` (da loc vi + thanh vien),
+ * rieng "Ai chi nhieu hon" dua tren `all` va bieu do xu huong dua tren mang
+ * cua rieng no. Lay nham mang la con so trong sheet lech ngay.
+ */
+type Drill =
+  | { kind: 'flow'; flow: 'income' | 'expense' | 'both' }
+  | { kind: 'category'; slice: CategorySlice }
+  | { kind: 'day'; day: number }
+  | { kind: 'shared' }
+  | { kind: 'private'; payerId: string }
+  | { kind: 'payer'; payerId: string }
+  | { kind: 'month'; monthKey: string }
+  | null
 
 export default function Stats() {
   const { members, memberById, accounts, profile, balanceOf } = useApp()
@@ -50,8 +77,20 @@ export default function Stats() {
   const trend = useTrend(rangeTrendMonths(range))
   const t = useChartTokens()
   const [showTable, setShowTable] = useState(false)
-  /** Danh muc dang mo bang chi tiet. */
-  const [detail, setDetail] = useState<CategorySlice | null>(null)
+  /**
+   * Con so dang duoc mo ra xem chi tiet.
+   *
+   * Chi luu MO TA cua no chu khong luu san danh sach giao dich. Neu chup san
+   * mang roi cat vao state thi lung sau nguoi dung sua mot khoan ngay trong
+   * sheet, danh sach do da cu ma van nam do.
+   */
+  const [drill, setDrill] = useState<Drill>(null)
+
+  /** Khoang thoi gian dang chon, viet ra chu. */
+  const periodLabel =
+    range === 'all'
+      ? RANGE_LABELS.all
+      : `${dayjs(from).format('DD/MM/YYYY')} – ${dayjs(to).format('DD/MM/YYYY')}`
 
   /**
    * Cac bo loc dang bat, viet ra chu de nguoi dung khong thac mac vi sao bang
@@ -68,37 +107,109 @@ export default function Stats() {
     return parts.length > 0 ? parts.join(' · ') : undefined
   }, [walletGroups, wallet, member, memberById])
 
-  // Chi tieu theo tung ngay trong thang
-  const daily = useMemo(() => {
-    const days = dayjs(month).daysInMonth()
-    const buckets = Array.from({ length: days }, (_, i) => ({
-      day: i + 1,
-      label: String(i + 1),
-      expense: 0,
-    }))
-    for (const tx of rows) {
-      if (tx.type !== 'expense') continue
-      const d = dayjs(tx.occurred_at).date()
-      if (buckets[d - 1]) buckets[d - 1].expense += tx.amount
-    }
-    return buckets
-  }, [rows, month])
+  /**
+   * Muc "Ai chi nhieu hon" va bieu do xu huong khong nhan bo loc vi. Neu nguoi
+   * dung dang loc mot vi thi phai noi ro, khong thi ho se thac mac sao bam vao
+   * lai ra nhieu giao dich hon con so tren dong.
+   */
+  const allWalletsNote = wallet !== null ? 'Mọi ví' : undefined
+  const trendScope =
+    [allWalletsNote, member !== 'all' ? memberById(member)?.display_name : null]
+      .filter(Boolean)
+      .join(' · ') || undefined
 
-  // So sanh giua cac thanh vien (chi tinh khoan chi)
+  /**
+   * Doi mo ta thanh thu de dua vao sheet. Tinh lai moi lan ve nen sau khi sua
+   * mot khoan, phan dau va danh sach trong sheet deu cap nhat theo.
+   */
+  const drilled = useMemo(() => {
+    if (!drill) return null
+    switch (drill.kind) {
+      case 'flow':
+        return {
+          title: drill.flow === 'income' ? 'Khoản thu' : drill.flow === 'expense' ? 'Khoản chi' : 'Thu và chi',
+          rows: flowTransactions(rows, drill.flow),
+          periodLabel,
+          scopeNote,
+        }
+      case 'category':
+        return {
+          icon: drill.slice.icon,
+          title: drill.slice.name,
+          rows: categoryTransactions(rows, drill.slice.categoryId),
+          periodLabel,
+          scopeNote,
+        }
+      case 'day': {
+        const d = dayjs(month).date(drill.day)
+        return {
+          title: `Ngày ${d.format('D/M')}`,
+          rows: dayTransactions(rows, month, drill.day),
+          periodLabel: d.format('DD/MM/YYYY'),
+          scopeNote,
+        }
+      }
+      case 'shared':
+        return {
+          icon: '🏠',
+          title: member === 'all' ? 'Khoản chung của gia đình' : 'Khoản chung',
+          rows: sharedTransactions(rows),
+          periodLabel,
+          scopeNote,
+        }
+      case 'private': {
+        const who = memberById(drill.payerId)
+        return {
+          icon: who?.avatar_emoji,
+          title: `Khoản riêng của ${who?.display_name ?? 'người này'}`,
+          rows: privateTransactions(rows, drill.payerId),
+          periodLabel,
+          scopeNote,
+        }
+      }
+      case 'payer': {
+        const who = memberById(drill.payerId)
+        return {
+          icon: who?.avatar_emoji,
+          title: who?.display_name ?? 'Thành viên',
+          rows: payerTransactions(all, drill.payerId),
+          periodLabel,
+          scopeNote: allWalletsNote,
+        }
+      }
+      case 'month': {
+        const start = dayjs(`${drill.monthKey}-01`)
+        return {
+          title: start.format('[Tháng] M/YYYY'),
+          rows: monthTransactions(trend.rows, drill.monthKey),
+          periodLabel: `${start.format('DD/MM/YYYY')} – ${start.endOf('month').format('DD/MM/YYYY')}`,
+          scopeNote: trendScope,
+        }
+      }
+    }
+  }, [
+    drill,
+    rows,
+    all,
+    trend.rows,
+    month,
+    member,
+    memberById,
+    periodLabel,
+    scopeNote,
+    allWalletsNote,
+    trendScope,
+  ])
+
+  // Chi tieu theo tung ngay trong thang
+  const daily = useMemo(() => aggregateDaily(rows, month), [rows, month])
+
+  // So sanh giua cac thanh vien. Tinh tren `all` chu khong phai `rows`: so sanh
+  // giua hai nguoi thi khong the loc theo mot nguoi, va bo loc vi cung khong ap
+  // vao day. Bang chi tiet ben duoi phai dung dung `all` thi con so moi khop.
   const byMember = useMemo(() => {
     const empty = { expense: 0, income: 0, privateExpense: 0 }
-    const map = new Map<string, typeof empty>()
-    for (const tx of all) {
-      if (tx.type === 'transfer') continue
-      const cur = map.get(tx.payer_id) ?? { ...empty }
-      if (tx.type === 'expense') {
-        cur.expense += tx.amount
-        if (!tx.is_shared) cur.privateExpense += tx.amount
-      } else {
-        cur.income += tx.amount
-      }
-      map.set(tx.payer_id, cur)
-    }
+    const map = aggregateByPayer(all)
     return members.map((m, i) => ({
       id: m.id,
       name: m.display_name,
@@ -150,6 +261,14 @@ export default function Stats() {
   const maxDaily = Math.max(...daily.map((d) => d.expense), 1)
   const avgDaily = stats.expense / dayjs(month).daysInMonth()
   const topCategory = byCategory[0]
+
+  /**
+   * Mau so cua muc "Ai chi nhieu hon" phai la tong chi CUA CHINH MUC DO.
+   * Truoc lay `stats.expense` - von tinh tren `rows` da loc theo vi - trong khi
+   * tu so tinh tren `all` khong loc vi, nen khi bat bo loc vi thi ty trong cong
+   * lai vuot qua 100%.
+   */
+  const memberExpenseTotal = byMember.reduce((sum, m) => sum + m.expense, 0)
 
   if (isLoading) {
     return (
@@ -224,23 +343,37 @@ export default function Stats() {
       <div className="space-y-4 px-4">
         {/* Ba con so dau bang */}
         <section className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Thu', value: stats.income, tone: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Chi', value: stats.expense, tone: 'text-red-500' },
-            {
-              label: range === 'month' ? 'Chênh lệch' : 'Tích luỹ',
-              value: stats.net,
-              tone: stats.net >= 0 ? 'text-ink-950 dark:text-white' : 'text-red-500',
-            },
-          ].map((s) => (
-            <div key={s.label} className="card p-3">
+          {(
+            [
+              {
+                label: 'Thu',
+                value: stats.income,
+                tone: 'text-emerald-600 dark:text-emerald-400',
+                flow: 'income',
+              },
+              { label: 'Chi', value: stats.expense, tone: 'text-red-500', flow: 'expense' },
+              {
+                label: range === 'month' ? 'Chênh lệch' : 'Tích luỹ',
+                value: stats.net,
+                tone: stats.net >= 0 ? 'text-ink-950 dark:text-white' : 'text-red-500',
+                flow: 'both',
+              },
+            ] as const
+          ).map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => setDrill({ kind: 'flow', flow: s.flow })}
+              aria-label={`Xem các khoản làm nên ${s.label}`}
+              className="card p-3 text-left transition active:bg-ink-100 dark:active:bg-white/5"
+            >
               <p className="text-[11px] font-bold uppercase tracking-wide text-ink-500">
                 {s.label}
               </p>
               <p className={clsx('mt-1 text-[17px] font-extrabold tabular-nums', s.tone)}>
                 {formatCompact(s.value)}
               </p>
-            </div>
+            </button>
           ))}
         </section>
 
@@ -313,6 +446,9 @@ export default function Stats() {
                   <Table2 size={16} />
                 </button>
               </div>
+              <p className="mb-2 text-[12px] text-ink-400">
+                Bấm vào một tháng để xem giao dịch của tháng đó
+              </p>
 
               {showTable ? (
                 <div className="-mx-1 overflow-x-auto">
@@ -327,7 +463,11 @@ export default function Stats() {
                     </thead>
                     <tbody className="divide-y divide-ink-200/60 tabular-nums dark:divide-white/5">
                       {trend.buckets.map((b) => (
-                        <tr key={b.key}>
+                        <tr
+                          key={b.key}
+                          onClick={() => setDrill({ kind: 'month', monthKey: b.key })}
+                          className="cursor-pointer transition active:bg-ink-100 dark:active:bg-white/5"
+                        >
                           <td className="py-2 font-semibold">{b.label}</td>
                           <td className="py-2 text-right">{formatCompact(b.income)}</td>
                           <td className="py-2 text-right">{formatCompact(b.expense)}</td>
@@ -342,7 +482,17 @@ export default function Stats() {
               ) : (
                 <div className="-ml-3 h-56">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={trend.buckets} barGap={2} margin={{ top: 12, right: 4, bottom: 0, left: 0 }}>
+                    <BarChart
+                      data={trend.buckets}
+                      barGap={2}
+                      margin={{ top: 12, right: 4, bottom: 0, left: 0 }}
+                      className="cursor-pointer"
+                      onClick={(state) => {
+                        const i = state?.activeTooltipIndex
+                        const b = typeof i === 'number' ? trend.buckets[i] : undefined
+                        if (b) setDrill({ kind: 'month', monthKey: b.key })
+                      }}
+                    >
                       <CartesianGrid vertical={false} stroke={t.grid} />
                       <XAxis
                         dataKey="label"
@@ -385,9 +535,23 @@ export default function Stats() {
               <p className="mt-0.5 text-[13px] text-ink-500">
                 Trung bình {formatMoney(avgDaily)}/ngày
               </p>
+              <p className="mt-0.5 text-[12px] text-ink-400">
+                Bấm vào một cột để xem các khoản chi hôm đó
+              </p>
               <div className="-ml-3 mt-2 h-40">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={daily} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                  <BarChart
+                    data={daily}
+                    margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
+                    className="cursor-pointer"
+                    onClick={(state) => {
+                      const i = state?.activeTooltipIndex
+                      const b = typeof i === 'number' ? daily[i] : undefined
+                      // Ngay khong co khoan chi nao thi bam vao mo ra sheet rong,
+                      // vo nghia - bo qua luon.
+                      if (b && b.count > 0) setDrill({ kind: 'day', day: b.day })
+                    }}
+                  >
                     <CartesianGrid vertical={false} stroke={t.grid} />
                     <XAxis
                       dataKey="label"
@@ -437,7 +601,7 @@ export default function Stats() {
                     <li key={c.categoryId}>
                       <button
                         type="button"
-                        onClick={() => setDetail(c)}
+                        onClick={() => setDrill({ kind: 'category', slice: c })}
                         aria-label={`Xem chi tiết ${c.name}`}
                         className="w-full rounded-xl text-left transition active:bg-ink-100 dark:active:bg-white/5"
                       >
@@ -485,17 +649,35 @@ export default function Stats() {
                     const share = pct(r.amount, sharedSplit.total)
                     return (
                       <li key={r.key}>
-                        <div className="mb-1.5 flex items-baseline gap-2">
-                          <span className="text-base leading-none">{r.emoji}</span>
-                          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
-                            {r.label}
-                          </span>
-                          <span className="text-[13px] tabular-nums text-ink-500">{share}%</span>
-                          <span className="text-[14px] font-bold tabular-nums">
-                            {formatCompact(r.amount)}
-                          </span>
-                        </div>
-                        <ProgressBar value={share} color={r.color} />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDrill(
+                              r.key === 'shared'
+                                ? { kind: 'shared' }
+                                : { kind: 'private', payerId: r.key },
+                            )
+                          }
+                          aria-label={`Xem chi tiết ${r.label}`}
+                          className="w-full rounded-xl text-left transition active:bg-ink-100 dark:active:bg-white/5"
+                        >
+                          <div className="mb-1.5 flex items-baseline gap-2">
+                            <span className="text-base leading-none">{r.emoji}</span>
+                            <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
+                              {r.label}
+                            </span>
+                            <span className="text-[13px] tabular-nums text-ink-500">{share}%</span>
+                            <span className="text-[14px] font-bold tabular-nums">
+                              {formatCompact(r.amount)}
+                            </span>
+                            <ChevronRight
+                              size={15}
+                              className="shrink-0 self-center text-ink-400"
+                              aria-hidden
+                            />
+                          </div>
+                          <ProgressBar value={share} color={r.color} />
+                        </button>
                       </li>
                     )
                   })}
@@ -509,9 +691,15 @@ export default function Stats() {
                 <h2 className="font-bold">Ai chi nhiều hơn</h2>
                 <div className="mt-3 space-y-4">
                   {byMember.map((m) => {
-                    const share = pct(m.expense, stats.expense)
+                    const share = pct(m.expense, memberExpenseTotal)
                     return (
-                      <div key={m.id}>
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setDrill({ kind: 'payer', payerId: m.id })}
+                        aria-label={`Xem các khoản của ${m.name}`}
+                        className="block w-full rounded-xl text-left transition active:bg-ink-100 dark:active:bg-white/5"
+                      >
                         <div className="mb-1.5 flex items-baseline gap-2">
                           <span>{m.emoji}</span>
                           <span className="flex-1 truncate text-[14px] font-semibold">{m.name}</span>
@@ -519,13 +707,18 @@ export default function Stats() {
                           <span className="text-[14px] font-bold tabular-nums">
                             {formatCompact(m.expense)}
                           </span>
+                          <ChevronRight
+                            size={15}
+                            className="shrink-0 self-center text-ink-400"
+                            aria-hidden
+                          />
                         </div>
                         <ProgressBar value={share} color={m.color} />
                         <p className="mt-1 text-[12px] text-ink-500">
                           Trong đó riêng: {formatCompact(m.privateExpense)} · Thu:{' '}
                           {formatCompact(m.income)}
                         </p>
-                      </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -535,16 +728,17 @@ export default function Stats() {
         )}
       </div>
 
-      <CategoryDetailSheet
-        open={Boolean(detail)}
-        onClose={() => setDetail(null)}
-        slice={detail}
-        rows={rows}
-        range={range}
-        from={from}
-        to={to}
-        scopeNote={scopeNote}
-      />
+      {drilled && (
+        <BreakdownSheet
+          open={Boolean(drill)}
+          onClose={() => setDrill(null)}
+          icon={drilled.icon}
+          title={drilled.title}
+          rows={drilled.rows}
+          periodLabel={drilled.periodLabel}
+          scopeNote={drilled.scopeNote}
+        />
+      )}
     </div>
   )
 }

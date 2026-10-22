@@ -14,6 +14,7 @@ import {
 import { ConflictError, isConflict } from './errors'
 import { newId, sendOrQueue } from './outbox'
 import { changedFields } from './patch'
+import type { PlannedMove } from './transfers'
 import { supabase } from './supabase'
 import type {
   Account,
@@ -381,6 +382,112 @@ export function useDeleteTransaction() {
         applyBalanceLocally(qc, null, previous)
       }
       return { pending }
+    },
+    onSuccess: ({ pending }) => {
+      if (!pending) invalidateMoney(qc)
+    },
+  })
+}
+
+export interface MoveResult {
+  moved: number
+  /** Nguoi kia vua sua/xoa dung khoan do nen khong ghi de. */
+  conflicts: number
+  /** Gui khong duoc vi ly do khac (may chu tu choi...). */
+  failed: number
+  pending: boolean
+}
+
+/**
+ * Doi tai khoan cho ca loat giao dich, dung khi lo nhap nham vi.
+ *
+ * Moi khoan van la mot lenh sua rieng kem guard "o nay van dang la tai khoan
+ * cu": neu nguoi kia vua doi khoan do sang cho khac thi bo qua khoan do chu
+ * khong keo no ve. Mot khoan hong khong lam dung ca loat - dem lai roi bao.
+ */
+export function useMoveTransactions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (moves: PlannedMove[]): Promise<MoveResult> => {
+      const result: MoveResult = { moved: 0, conflicts: 0, failed: 0, pending: false }
+      const now = new Date().toISOString()
+
+      for (const { tx, patch } of moves) {
+        const field = Object.keys(patch)[0] as 'account_id' | 'to_account_id'
+        try {
+          const pending = await sendGuarded({
+            table: 'transactions',
+            action: 'update',
+            values: patch,
+            match: { id: tx.id },
+            guard: { [field]: tx[field] },
+          })
+          const previous = findCachedTransaction(qc, tx.id) ?? tx
+          const row = { ...previous, ...patch, updated_at: now } as Transaction
+          applyTransactionLocally(qc, row, 'update', pending)
+          applyBalanceLocally(qc, row, previous)
+          result.moved += 1
+          result.pending ||= pending
+        } catch (e) {
+          if (isConflict(e)) result.conflicts += 1
+          else result.failed += 1
+        }
+      }
+      return result
+    },
+    onSuccess: ({ pending }) => {
+      if (!pending) invalidateMoney(qc)
+    },
+  })
+}
+
+/**
+ * Ghi mot lan nhieu khoan chuyen tu cung mot tai khoan, vd nhan luong vao
+ * BIDV roi chia sang Momo va Vietcombank.
+ *
+ * Moi dong la mot giao dich loai "transfer" rieng - khong phai mot cap chi +
+ * thu. Chuyen giua cac vi cua nha minh khong phai tieu tien cung khong phai
+ * kiem them tien, ghi thanh chi + thu se doi ca tong thu lan tong chi len.
+ */
+export function useSplitTransfer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      household_id: string
+      created_by: string
+      fromAccountId: string
+      legs: { toAccountId: string; amount: number }[]
+      occurred_at: string
+      note: string
+    }) => {
+      let pending = false
+      const now = new Date().toISOString()
+      for (const leg of input.legs) {
+        const id = newId()
+        const values = {
+          household_id: input.household_id,
+          type: 'transfer' as const,
+          amount: leg.amount,
+          occurred_at: input.occurred_at,
+          category_id: null,
+          account_id: input.fromAccountId,
+          to_account_id: leg.toAccountId,
+          payer_id: input.created_by,
+          is_shared: true,
+          note: input.note,
+          created_by: input.created_by,
+        }
+        const queued = await sendOrQueue({
+          table: 'transactions',
+          action: 'insert',
+          values: { ...values, id },
+        })
+        const row = { ...values, id, created_at: now, updated_at: now } as Transaction
+        applyTransactionLocally(qc, row, 'insert', queued)
+        applyBalanceLocally(qc, row, null)
+        pending ||= queued
+      }
+      return { pending, count: input.legs.length }
     },
     onSuccess: ({ pending }) => {
       if (!pending) invalidateMoney(qc)

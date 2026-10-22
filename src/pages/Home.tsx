@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import {
   ArrowDownLeft,
+  ArrowRightLeft,
   ArrowUpRight,
   CalendarClock,
   ChevronRight,
@@ -14,6 +15,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MemberTabs, PageHeader } from '@/components/AppShell'
 import { TransactionGroups } from '@/components/TransactionList'
+import { TransferSheet } from '@/components/TransferSheet'
 import { EmptyState, ProgressBar, Spinner } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
 import { useMonthData, useWalletFlow } from '@/hooks/useMonthData'
@@ -44,6 +46,7 @@ export default function Home() {
   const { month, member } = useUI()
   const { rows, stats, byCategory, sharedByPayer, isLoading } = useMonthData()
   const [hideBalance, setHideBalance] = useState(false)
+  const [transferring, setTransferring] = useState(false)
 
   const budgetsQ = useBudgets(month, true)
   const billsQ = useBills(true)
@@ -188,13 +191,18 @@ export default function Home() {
             {/* Cac tai khoan nam trong vi nay */}
             <ul className="mt-2.5 space-y-1 text-[13px]">
               {myAccounts.map((a) => (
-                <li key={a.id} className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 truncate text-ink-500">
-                    {a.icon} {a.name}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-ink-500">
-                    {hideBalance ? '••••' : formatMoney(balanceOf(a.id))}
-                  </span>
+                <li key={a.id}>
+                  <Link
+                    to={`/more/accounts/${a.id}`}
+                    className="flex items-baseline justify-between gap-3"
+                  >
+                    <span className="min-w-0 truncate text-ink-500">
+                      {a.icon} {a.name}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-ink-500">
+                      {hideBalance ? '••••' : formatMoney(balanceOf(a.id))}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -233,6 +241,16 @@ export default function Home() {
                 {formatMoney(Math.abs(myFlow.net))}
               </span>
             </div>
+
+            {/* Chia luong ra cac tai khoan: ghi thanh khoan chuyen, khong doi Thu / Chi */}
+            {accounts.filter((a) => !a.archived).length > 1 && (
+              <button
+                className="btn-ghost mt-3 w-full py-2.5 text-sm"
+                onClick={() => setTransferring(true)}
+              >
+                <ArrowRightLeft size={16} /> Chuyển / chia tiền giữa tài khoản
+              </button>
+            )}
           </section>
         ) : (
           <Link to="/more/accounts" className="card flex items-center gap-3 p-4">
@@ -392,6 +410,8 @@ export default function Home() {
           )}
         </section>
       </div>
+
+      <TransferSheet open={transferring} onClose={() => setTransferring(false)} />
     </div>
   )
 }

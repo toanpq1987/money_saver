@@ -267,6 +267,13 @@ export function TransactionSheet({ open, onClose, transaction, defaultType = 'ex
         ]}
       />
 
+      {type === 'transfer' && (
+        <p className="-mt-3 mb-4 text-[13px] leading-relaxed text-ink-500">
+          Tiền đổi chỗ giữa các tài khoản của nhà mình — không tính vào Thu hay Chi. Muốn chia
+          một khoản ra nhiều tài khoản cùng lúc thì vào <b>Ví &amp; tài khoản → Chuyển tiền</b>.
+        </p>
+      )}
+
       <Field label="Số tiền" hint="Gõ tắt được: 50k, 1,2tr, 2ty">
         <MoneyInput value={amount} onChange={setAmount} autoFocus={!transaction} />
         <QuickAmounts onPick={(d) => setAmount((a) => a + d)} />

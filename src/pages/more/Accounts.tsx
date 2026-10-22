@@ -1,19 +1,20 @@
 import clsx from 'clsx'
-import { Plus } from 'lucide-react'
+import { ArrowRightLeft, ChevronRight, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { SubHeader } from '@/components/AppShell'
 import { ACCOUNT_KINDS, AccountSheet } from '@/components/AccountSheet'
+import { TransferSheet } from '@/components/TransferSheet'
 import { EmptyState } from '@/components/ui'
 import { useApp } from '@/hooks/useApp'
 import { formatMoney } from '@/lib/format'
 import { groupAccountsByOwner } from '@/lib/wallets'
-import type { Account } from '@/lib/types'
 
 export default function Accounts() {
   const { accounts, balanceOf, members, profile } = useApp()
-  const [editing, setEditing] = useState<Account | null>(null)
   const [creating, setCreating] = useState(false)
+  const [transferring, setTransferring] = useState(false)
+  const navigate = useNavigate()
 
   const live = accounts.filter((a) => !a.archived)
   const archived = accounts.filter((a) => a.archived)
@@ -40,6 +41,13 @@ export default function Accounts() {
       />
 
       <div className="space-y-4 px-4">
+        {/* Dat tren cung cho de thay: chuyen giua tai khoan khong phai la Chi + Thu */}
+        {live.length > 1 && (
+          <button className="btn-primary w-full" onClick={() => setTransferring(true)}>
+            <ArrowRightLeft size={18} /> Chuyển / chia tiền giữa tài khoản
+          </button>
+        )}
+
         {live.length === 0 ? (
           <div className="card">
             <EmptyState
@@ -75,7 +83,7 @@ export default function Accounts() {
                     return (
                       <button
                         key={a.id}
-                        onClick={() => setEditing(a)}
+                        onClick={() => navigate(`/more/accounts/${a.id}`)}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-ink-100 dark:active:bg-white/5"
                       >
                         <span
@@ -98,6 +106,7 @@ export default function Accounts() {
                         >
                           {formatMoney(balance)}
                         </span>
+                        <ChevronRight size={16} className="-mr-1 shrink-0 text-ink-400" />
                       </button>
                     )
                   })}
@@ -105,6 +114,13 @@ export default function Accounts() {
               </section>
             )
           })
+        )}
+
+        {live.length > 0 && (
+          <p className="px-1 text-[13px] text-ink-500">
+            Bấm vào một tài khoản để xem mọi giao dịch của nó, hoặc chọn nhiều khoản để chuyển
+            sang tài khoản khác khi lỡ ghi nhầm.
+          </p>
         )}
 
         <button className="btn-ghost w-full" onClick={() => setCreating(true)}>
@@ -120,7 +136,7 @@ export default function Accounts() {
               {archived.map((a) => (
                 <button
                   key={a.id}
-                  onClick={() => setEditing(a)}
+                  onClick={() => navigate(`/more/accounts/${a.id}`)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left"
                 >
                   <span className="text-lg">{a.icon}</span>
@@ -134,13 +150,12 @@ export default function Accounts() {
       </div>
 
       <AccountSheet
-        open={creating || Boolean(editing)}
-        account={editing}
-        onClose={() => {
-          setCreating(false)
-          setEditing(null)
-        }}
+        open={creating}
+        account={null}
+        onClose={() => setCreating(false)}
       />
+
+      <TransferSheet open={transferring} onClose={() => setTransferring(false)} />
     </div>
   )
 }

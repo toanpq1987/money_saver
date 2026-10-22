@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowRightLeft, CloudOff } from 'lucide-react'
+import { ArrowRightLeft, Check, CloudOff } from 'lucide-react'
 import { useState } from 'react'
 import { useApp } from '@/hooks/useApp'
 import { groupByDay } from '@/hooks/useMonthData'
@@ -10,9 +10,18 @@ import { TransactionSheet } from './TransactionSheet'
 export function TransactionRow({
   tx,
   onClick,
+  selected,
+  accountId,
 }: {
   tx: Transaction
   onClick?: () => void
+  /** Co gia tri = dang o che do chon nhieu, hien o tick ben trai. */
+  selected?: boolean
+  /**
+   * Dang xem tu goc mot tai khoan: khoan chuyen hien dau +/- theo chieu tien
+   * vao hay ra khoi tai khoan do, thay vi de trong nhu o danh sach chung.
+   */
+  accountId?: string
 }) {
   const { categoryById, accountById, memberById, members } = useApp()
   const category = categoryById(tx.category_id)
@@ -22,12 +31,29 @@ export function TransactionRow({
 
   const isTransfer = tx.type === 'transfer'
   const isIncome = tx.type === 'income'
+  const transferIn = isTransfer && accountId !== undefined && tx.to_account_id === accountId
+  const transferOut = isTransfer && accountId !== undefined && tx.account_id === accountId
 
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-ink-100 dark:active:bg-white/5"
+      className={clsx(
+        'flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-ink-100 dark:active:bg-white/5',
+        selected && 'bg-brand-500/10',
+      )}
     >
+      {selected !== undefined && (
+        <span
+          className={clsx(
+            'grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition',
+            selected
+              ? 'border-brand-600 bg-brand-600 text-white'
+              : 'border-ink-300 dark:border-white/20',
+          )}
+        >
+          {selected && <Check size={14} strokeWidth={3} />}
+        </span>
+      )}
       <span
         className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-xl"
         style={{
@@ -70,10 +96,16 @@ export function TransactionRow({
       <span
         className={clsx(
           'shrink-0 text-[15px] font-bold tabular-nums',
-          isTransfer ? 'text-ink-400' : isIncome ? 'text-emerald-600 dark:text-emerald-400' : '',
+          transferIn
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : isTransfer && !transferOut
+              ? 'text-ink-400'
+              : isIncome
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : '',
         )}
       >
-        {isTransfer ? '' : isIncome ? '+' : '-'}
+        {transferIn ? '+' : transferOut ? '-' : isTransfer ? '' : isIncome ? '+' : '-'}
         {formatMoney(tx.amount)}
       </span>
     </button>

@@ -27,6 +27,21 @@
     font-size: 16px;
   }
 
+  /*
+   * Safari tren iPhone cho o chon ngay mot be ngang toi thieu rieng, bo qua
+   * width: 100% - dat trong luoi hai cot (Tu ngay / Den ngay) la loi ra ngoai
+   * man hinh va keo ca trang bi day ngang. Bo kieu goc di thi no moi chiu co.
+   */
+  input[type='date'] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    min-height: 3rem;
+  }
+  input[type='date']::-webkit-date-and-time-value {
+    text-align: left;
+  }
+
   /* An mui ten tang/giam cua input number */
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
@@ -63,8 +78,12 @@
     @apply btn bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:text-red-400;
   }
 
+  /*
+   * min-w-0: <select> dat trong hang flex se gian theo dong lua chon DAI NHAT
+   * (vd "Vietcombank luong · 12.345.678 d") roi day ca hang tran khoi man hinh.
+   */
   .field {
-    @apply w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-ink-950
+    @apply min-w-0 w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-ink-950
            outline-none transition placeholder:text-ink-400
            focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15
            dark:border-white/10 dark:bg-white/5 dark:text-ink-50 dark:placeholder:text-ink-500;

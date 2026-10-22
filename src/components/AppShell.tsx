@@ -20,7 +20,10 @@ export function AppShell() {
   const [adding, setAdding] = useState(false)
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg">
+    // overflow-x-clip: lo co phan tu nao rong hon man hinh thi cat di, khong
+    // de ca trang bi keo ngang ra nhu ban may tinh. Dung clip chu khong dung
+    // hidden vi hidden bien khung nay thanh vung cuon, lam hong header dinh.
+    <div className="mx-auto min-h-dvh w-full max-w-lg overflow-x-clip">
       <Outlet />
 
       <SyncStatus />
